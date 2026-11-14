@@ -37,7 +37,8 @@ they go away. Everything can be overridden in **Settings**.
 | Throttle | `W` / `↑` | GAS (slide up for more) | RT |
 | Brake (rear brake in a wheelie) | `S` / `↓` | BRAKE | LT |
 | Steer | `A` `D` / `←` `→` | Left stick | Left stick |
-| Lean back (pull up) | `Shift` / `Q` | Stick down | Stick back |
+| Wheelie switch (turns off when the front lands) | `Shift` | WHEELIE | Stick click |
+| Lean back (trim / air) | `Q` | Stick down | Stick back |
 | Lean forward | `E` | Stick up | Stick forward |
 | Bunny hop (hold, release) | `Space` | HOP | A |
 | One-hander / no-hander / seat stander / foot drag | `1` `2` `3` `4` (or `J` `K` `L` `;`) | Trick buttons | X / Y / B / LB |
@@ -46,7 +47,7 @@ they go away. Everything can be overridden in **Settings**.
 | Reset to the road | `R` | RESET | Back |
 | Pause, garage, mute, time of day | `P`, `G`, `M`, `T` | II | Start |
 
-**Your first wheelie:** get rolling, hold throttle and lean back. Feather the throttle to
+**Your first wheelie:** get rolling, hold throttle and tap the wheelie switch. Feather the throttle to
 float in the green balance-point zone; tap the brake if it goes too far. Stopped against a
 wall? Hold brake to paddle backwards.
 

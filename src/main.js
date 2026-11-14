@@ -157,7 +157,8 @@ class Game {
     const h = this.city.spots.home;
     if (keepPos) this.phys.reset(x, z, yaw); else this.phys.reset(h.x, h.z, h.yaw);
     this.rig.snap = true; this.safe.length = 0;
-    this.burnout = false;
+    this.burnout = false; this.wheelieOn = false;
+    const ws = document.getElementById('wsw'); if (ws) { ws.classList.add('hidden'); document.getElementById('t-wheelie').classList.remove('on'); }
     const bp = document.getElementById('burn'); if (bp) { bp.classList.add('hidden'); document.getElementById('t-burn').classList.remove('on'); }
   }
 
@@ -214,8 +215,8 @@ class Game {
     this._updateControlsMode();
     if (!this.hinted) {
       this.hinted = true;
-      this.hud.hint(this.touchOn ? 'Hold <b>GAS</b> and press <b>WHEELIE</b> to lift the front · <b>BRAKE</b> brings it back down'
-        : 'Hold <kbd>W</kbd> and tap <kbd>Shift</kbd> to wheelie · <kbd>S</kbd> brings it down · <kbd>1</kbd>–<kbd>4</kbd> tricks · <kbd>C</kbd> camera', 9);
+      this.hud.hint(this.touchOn ? 'Hold <b>GAS</b> and tap the <b>WHEELIE</b> switch to lift the front · <b>BRAKE</b> brings it back down'
+        : 'Hold <kbd>W</kbd> and tap <kbd>Shift</kbd> (wheelie switch) to lift the front · <kbd>S</kbd> brings it down · <kbd>1</kbd>–<kbd>4</kbd> tricks · <kbd>C</kbd> camera', 9);
     }
   }
   pause() { if (this.state !== 'play') return; this.state = 'pause'; this.tricks.bankNow(); this.menus.show('pause'); this.touch.show(false); this.input.enabled = false; }
@@ -329,12 +330,24 @@ class Game {
       document.getElementById('burn').classList.toggle('hidden', !this.burnout);
       document.getElementById('t-burn').classList.toggle('on', this.burnout);
     }
+    if (input.take('wheelie') && !p.crashed) this._wheelieSwitch(!this.wheelieOn);
     if (input.take('reset')) { if (!p.crashed || p.crashT > 0.6) { this.tricks.crash(); this.respawn(false); } }
     input.take('confirm');
 
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
     const w = this.rider.w;
-    inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist;
+    inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.hop = s.hop; inp.assist = st.assist;
+    // The wheelie switch: on = the rider pulls the front up and commits to it;
+    // it clicks off by itself once the front wheel is back on the ground.
+    let lean = s.lean;
+    if (this.wheelieOn) {
+      this.wheelieT += dt;
+      if (p.rearContact && !p.frontContact && p.pitch > 0.15) { this.wheelieUp = true; this.downT = 0; }
+      if (p.crashed) this._wheelieSwitch(false);
+      else if (!this.wheelieUp) { lean = 1; if (this.wheelieT > 2.2) this._wheelieSwitch(false); }
+      else if (p.frontContact && p.pitch < 0.1) { this.downT += dt; if (this.downT > 0.3) this._wheelieSwitch(false); }
+    } else if ((p.rearContact || p.frontContact) && lean > 0) lean = 0;
+    inp.lean = lean; inp.wheelieOff = !this.wheelieOn;
     inp.burnout = !!this.burnout;
     inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
@@ -425,6 +438,12 @@ class Game {
       wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
     });
     if (this.frameN % 2 === 0) hud.minimap(p.x, p.z, p.yaw, cp.units, cp.wanted);
+  }
+
+  _wheelieSwitch(on) {
+    this.wheelieOn = on; this.wheelieT = 0; this.wheelieUp = false; this.downT = 0;
+    document.getElementById('wsw').classList.toggle('hidden', !on);
+    document.getElementById('t-wheelie').classList.toggle('on', on);
   }
 
   // place the bike + rider meshes from the physics state

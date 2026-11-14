@@ -217,3 +217,5 @@ kbd { display: inline-block; background: #fff; color: #000; border-radius: 4px; 
   #tricks { bottom: calc(22px * var(--u) + var(--sab)); }
   #t-wheelie { bottom: calc(190px * var(--u) + var(--sab)); height: calc(52px * var(--u)); }
 }
+
+#wsw { border-color: var(--yel); min-width: 0; }
