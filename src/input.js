@@ -7,7 +7,7 @@ const KEYMAP = {
   Space: 'hop',
   Digit1: 't0', Digit2: 't1', Digit3: 't2', Digit4: 't3', KeyJ: 't0', KeyK: 't1', KeyL: 't2', Semicolon: 't3',
 };
-const ACTIONS = { KeyC: 'camera', KeyR: 'reset', KeyP: 'pause', Escape: 'pause', KeyG: 'garage', KeyM: 'mute', Enter: 'confirm', KeyT: 'time' };
+const ACTIONS = { KeyC: 'camera', KeyR: 'reset', KeyP: 'pause', Escape: 'pause', KeyG: 'garage', KeyM: 'mute', Enter: 'confirm', KeyT: 'time', KeyB: 'burn' };
 
 export class Input {
   constructor() {

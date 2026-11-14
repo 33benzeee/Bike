@@ -204,3 +204,8 @@ kbd { display: inline-block; background: #fff; color: #000; border-radius: 4px; 
 .cheat .cta { margin-top: 0; }
 .tip.good { border-color: var(--grn); background: rgba(52, 209, 122, 0.12); color: #fff; }
 .tip.bad { border-color: var(--red); background: rgba(255, 59, 48, 0.12); color: #fff; }
+
+/* burnout switch */
+#t-burn { left: calc(50% + 40px * var(--u)); top: calc(10px + var(--sat)); width: calc(84px * var(--u)); height: calc(30px * var(--u)); font-size: calc(11px * var(--u)) !important; border-radius: 6px; opacity: 0.8; }
+#t-reset { transform: translateX(calc(-100% - 4px)) !important; }
+#burn { border-color: var(--yel); }

@@ -123,6 +123,8 @@ export class Tricks {
       if (s.dist > 4 && this.onPopup) this.onPopup(`${Math.round(s.dist)} m stoppie`, 0);
     }
 
+    if (phys.burning) { parts.push('Burnout'); this._add('Burnout', 22 * dt, false); busy = true; }
+
     // ---- skids
     if (phys.rearLocked && speed > 4 && phys.frontContact) {
       this.skidT += dt;

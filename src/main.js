@@ -157,6 +157,8 @@ class Game {
     const h = this.city.spots.home;
     if (keepPos) this.phys.reset(x, z, yaw); else this.phys.reset(h.x, h.z, h.yaw);
     this.rig.snap = true; this.safe.length = 0;
+    this.burnout = false;
+    const bp = document.getElementById('burn'); if (bp) { bp.classList.add('hidden'); document.getElementById('t-burn').classList.remove('on'); }
   }
 
   buyBike(id) {
@@ -321,12 +323,19 @@ class Game {
       if (this.cops.wanted) hud.hint('Lose the cops before you hit the garage', 3);
       else { this.pause(); this.menus.sel = this.save.data.bike; this.openGarage(); this.menus.show('garage'); return; }
     }
+    if (input.take('burn')) {
+      if (spec.drive.type !== 'electric') { this.burnout = false; hud.hint('Burnouts need a motor — try an e-bike or e-moto', 3); }
+      else { this.burnout = !this.burnout; hud.camName(this.burnout ? 'Burnout mode on' : 'Burnout mode off'); }
+      document.getElementById('burn').classList.toggle('hidden', !this.burnout);
+      document.getElementById('t-burn').classList.toggle('on', this.burnout);
+    }
     if (input.take('reset')) { if (!p.crashed || p.crashT > 0.6) { this.tricks.crash(); this.respawn(false); } }
     input.take('confirm');
 
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
     const w = this.rider.w;
     inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist;
+    inp.burnout = !!this.burnout;
     inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
 
@@ -381,7 +390,7 @@ class Game {
     if (this.dustT <= 0 && !p.crashed) {
       this.dustT = 0.05;
       if (p.rearContact && DUST[p.surface] && Math.abs(p.speed) > 4) this.effects.dust(rx, ry, rz, 1, DUST[p.surface], 0.6);
-      if (p.slipRear && p.rearContact && p.surface < 2) this.effects.smoke(rx, ry, rz, 1);
+      if (p.slipRear && p.rearContact && p.surface < 2) this.effects.smoke(rx, ry, rz, p.burning ? 3 : 1);
       if (w.drag > 0.8 && p.wheelieT > 0.2 && Math.abs(p.speed) > 3) this.effects.sparks(rx + hz * 0.34 - hx * 0.25, ry, rz - hx * 0.34 - hz * 0.25, 2, p.vx, p.vz);
       if (this.tricks.zone === 2) { this._v.copy(model.anchors.tail); model.group.localToWorld(this._v); this.effects.sparks(this._v.x, ry, this._v.z, 3, p.vx, p.vz); }
     }

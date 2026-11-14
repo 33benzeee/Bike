@@ -51,6 +51,8 @@ export class TouchControls {
     hold($('t-brake'), () => { t.brake = 1; }, () => { t.brake = 0; });
     hold($('t-hop'), () => { t.hop = true; }, () => { t.hop = false; });
     hold($('t-reset'), () => input.press('reset'), () => {});
+    const burn = $('t-burn');
+    burn.addEventListener('pointerdown', (e) => { input.press('burn'); e.preventDefault(); });
     for (const b of $('tricks').children) { const i = +b.dataset.t; hold(b, () => { t.tricks[i] = true; }, () => { t.tricks[i] = false; }); }
     document.addEventListener('gesturestart', (e) => e.preventDefault());
   }

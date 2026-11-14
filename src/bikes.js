@@ -136,7 +136,7 @@ export const BIKES = [
     susp: { kF: 20000, cF: 2200, tF: 0.3, kR: 24000, cR: 2500, tR: 0.3 },
     brake: 1.15, grip: 1.18, offroad: 1.2, cdA: 0.62,
     pullTorque: 1.45, hop: 3.4, leanRate: 7.2, steerMax: 0.62, loopAngle: 1.38, pitchDamp: 0.6,
-    wheelieGain: 5.5, wheelieRate: 1.5, unruly: 0.3, crashSpeed: 9, maxImpact: 15, wheelieSteer: 0.45,
+    wheelieGain: 3.8, wheelieRate: 1.0, unruly: 0.16, crashSpeed: 9, maxImpact: 15, wheelieSteer: 0.45,
     paint: 0xd9261c, accent: 0xf2f2f2, seat: 0x101010, variant: 'varg',
   },
 ];

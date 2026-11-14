@@ -58,7 +58,7 @@ export class BikePhysics {
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
     this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
-    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false; this.scrapeT = 0;
+    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
     this.events.length = 0;
   }
@@ -86,7 +86,7 @@ export class BikePhysics {
     this.steer += (inp.steer - this.steer) * (1 - Math.exp(-dt * sr));
     const tr = sp.drive.type === 'pedal' ? 6 : 7;
     this.throttle += clamp(inp.throttle - this.throttle, -dt * 25, dt * tr);
-    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 3.2);
+    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 5.5);
     this.comShift += clamp(inp.lean - this.comShift, -dt * 5.5, dt * 5.5);
 
     // a fresh tug on the bars / shove forward gives a short torque impulse
@@ -149,7 +149,11 @@ export class BikePhysics {
     let bF, bR;
     const assist = inp.assist || 0;
     if (backing) br = 0;
+    // burnout: front brake clamped, rear wheel lit up
+    const burn = !!inp.burnout && sp.drive.type === 'electric' && this.frontContact && this.rearContact && Math.abs(u) < 4.5 && th > 0.05;
+    this.burning = burn;
     if (!this.frontContact) { bF = 0; bR = br; } else { bF = br; bR = br * 0.6; }
+    if (burn) { bF = 1; bR = 0; }
     this.assistBrake = 0;
     // Rider "wrist" layer. 0 = raw sim, 1 = shaped throttle, 2 = shaped + auto balance.
     // In a wheelie the throttle asks for the force that holds the current angle plus
@@ -224,13 +228,14 @@ export class BikePhysics {
         const lim = sp.grip * g * Fn;
         const Fd = Math.min(this._drive(th, vt), driveCap);
         // in a wheelie the rear brake is a fine tool: cap how hard it can snap the front down
-        let bMax = sp.brake * 0.48 * m * G;
-        if (!this.frontContact) { const xw = cx * ct - cy * st; bMax = Math.min(bMax, (9 * (I + m * xw * xw)) / (cx * st + cy * ct + r)); }
+        let bMax = sp.brake * 0.56 * m * G;
+        if (!this.frontContact) { const xw = cx * ct - cy * st; bMax = Math.min(bMax, (12 * (I + m * xw * xw)) / (cx * st + cy * ct + r)); }
         const Fb = bR > 0 ? -Math.sign(vt) * Math.min(bR * bMax, (Math.abs(vt) * m * 0.5) / h) : 0;
         const coast = th < 0.05 ? (sp.drive.type === 'pedal' ? 0 : 0.02 * m * G) : 0;
         const roll = -Math.tanh(vt * 4) * (SURF_ROLL[wc.surface] * Fn + coast);
         let Ft = Fd + Fb + roll;
-        if (Ft > lim) { Ft = lim * 0.9; this.slipRear = true; }
+        if (burn) { Ft = lim * 0.1 * th + roll; this.slipRear = true; }
+        else if (Ft > lim) { Ft = lim * 0.9; this.slipRear = true; }
         else if (Ft < -lim) { Ft = -lim * 0.9; this.rearLocked = Math.abs(vt) > 1.5; }
         else if (bR > 0.85 && Math.abs(vt) > 2 && !this.assistBrake) this.rearLocked = true;
         const fs = Fn * ns + Ft * ny, fy = Fn * ny - Ft * ns;
@@ -238,7 +243,8 @@ export class BikePhysics {
         tq += (rsR - ns * r) * fy - (ryR - ny * r) * fs;
         fnTotal += Fn; rearC = true;
         this.rearPen = pen; this.rearFn = Fn; this.surface = wc.surface;
-        this.spinR = this.slipRear ? Math.max(this.spinR, vt / r) + 60 * h : this.rearLocked ? 0 : vt / r;
+        if (burn) this.spinR += ((th * sp.drive.topSpeed * 1.15) / r - this.spinR) * Math.min(1, 5 * h);
+        else this.spinR = this.slipRear ? Math.max(this.spinR, vt / r) + 60 * h : this.rearLocked ? 0 : vt / r;
       } else { this.rearPen = 0; this.rearFn = 0; this.spinR += (th * 40 - bR * 200 - this.spinR * 0.3) * h; if (this.spinR < 0) this.spinR = 0; }
     }
 
@@ -262,7 +268,7 @@ export class BikePhysics {
         const lim = sp.grip * g * Fn;
         let Fb = 0;
         if (bF > 0) {
-          let maxB = bF * sp.brake * 0.8 * m * G;
+          let maxB = bF * sp.brake * 0.9 * m * G;
           const tip = (m * G * rsF) / (r - ryF); // front-brake force that just lifts the rear
           if (assist > 0) {
             if (!this.rearContact && this.pitch < -0.04) {
@@ -372,6 +378,7 @@ export class BikePhysics {
       const kLean = (G * Math.tan(this.lean)) / Math.max(u * u, 6.25);
       yawRate = u * ((1 - b) * kCmd + b * kLean);
       if (this.rearLocked && frontC && au > 3) yawRate += this.steer * 1.5 * Math.min(1, au / 8);
+      if (this.burning) yawRate += this.steer * 2.4 * this.throttle; // swing the back end round: donuts
       this.airYaw = 0;
     } else {
       // airborne: a little whip, lean follows
