@@ -134,7 +134,7 @@ export class BikePhysics {
     const ct = Math.cos(this.pitch), st = Math.sin(this.pitch);
     let cx = sp.com[0] - this.comShift * sp.leanShift + (inp.comDX || 0);
     // climbing something steep, the rider gets over the bars to keep the front down
-    if (inp.assist > 0 && !this.committed && st > 0 && this.frontG > 0.3) cx += Math.min(0.2, st * 0.45) * this.frontG;
+    if (inp.assist > 0 && !this.committed && st > 0 && this.frontG > 0.3) cx += Math.min(0.28, st * 0.62) * this.frontG;
     const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
 
@@ -241,8 +241,9 @@ export class BikePhysics {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
         const vs = u - this.pitchVel * ryR, vv = vy + this.pitchVel * rsR;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
-        let Fn = su.kR * pen - su.cR * vn;
-        if (pen > su.tR) Fn += su.kR * 8 * (pen - su.tR);
+        const xr = pen / su.tR;
+        let Fn = su.kR * pen * (1 + 1.2 * xr * xr) - su.cR * vn * (vn > 0 ? 1.6 : 1);
+        if (pen > su.tR) Fn += su.kR * 10 * (pen - su.tR);
         Fn = clamp(Fn, 0, m * G * 14);
         let g = SURF_GRIP[wc.surface];
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);
@@ -281,8 +282,9 @@ export class BikePhysics {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
         const vs = u - this.pitchVel * ryF, vv = vy + this.pitchVel * rsF;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
-        let Fn = su.kF * pen - su.cF * vn;
-        if (pen > su.tF) Fn += su.kF * 8 * (pen - su.tF);
+        const xf = pen / su.tF;
+        let Fn = su.kF * pen * (1 + 1.2 * xf * xf) - su.cF * vn * (vn > 0 ? 1.6 : 1);
+        if (pen > su.tF) Fn += su.kF * 10 * (pen - su.tF);
         Fn = clamp(Fn, 0, m * G * 14);
         let g = SURF_GRIP[wc.surface];
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);

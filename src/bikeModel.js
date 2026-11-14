@@ -268,11 +268,11 @@ export function poseBike(model, phys, dt) {
   model.frontWheel.rotation.x = phys.wheelRotF;
   const cr = Math.min(phys.rearPen, sp.susp.tR), cf = Math.min(phys.frontPen, sp.susp.tF);
   if (model.hasRearSusp) {
-    model.rearSusp.position.y += (cr - model.rearSusp.position.y) * Math.min(1, dt * 30);
+    model.rearSusp.position.y += (cr - model.rearSusp.position.y) * Math.min(1, dt * 40);
     const p = model.swing.userData.piv;
     model.swing.rotation.x = Math.atan2(model.rearSusp.position.y - p[1], p[2]);
   }
-  if (model.hasFrontSusp) model.forkLower.position.y += (cf * 0.9 - model.forkLower.position.y) * Math.min(1, dt * 30);
+  if (model.hasFrontSusp) model.forkLower.position.y += (cf / Math.cos(model.rake) - model.forkLower.position.y) * Math.min(1, dt * 40);
   // bars turn a lot at walking pace, barely at speed
   const v = Math.abs(phys.speed);
   const target = phys.steer * (0.55 / (1 + v * 0.22)) + (phys.frontContact ? 0 : phys.steer * 0.25);
