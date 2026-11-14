@@ -62,7 +62,7 @@ class Game {
     this.rider = new Rider();
     this.effects = new Effects(this.scene);
     this.audio = new GameAudio(); this.audio.setVolume(st.volume, st.mute);
-    this.traffic = new Traffic(this.scene, this.terrain, this.city, this.q.traffic);
+    this.traffic = new Traffic(this.scene, this.terrain, this.city, this.q.traffic, this.q.shadows > 1);
     this.cops = new Cops(this.scene, this.terrain);
     this.tricks = new Tricks();
     this.hud = new Hud(this.city);
@@ -344,7 +344,7 @@ class Game {
     if (p.crashed) { if (p.crashT > 3.2 && !this.cops.wanted) this.respawn(false, true); else if (p.crashT > 3.6) this.respawn(false, true); }
     else {
       this.safeT += dt;
-      if (this.safeT > 0.5 && p.rearContact && p.frontContact && Math.abs(p.speed) > 2.5 && Math.abs(p.lean) < 0.5) {
+      if (this.safeT > 0.5 && p.rearContact && p.frontContact && Math.abs(p.speed) > 2.5 && Math.abs(p.lean) < 0.5 && Math.abs(p.pitch) < 0.12) {
         this.safeT = 0; this.safe.push({ x: p.x, z: p.z, yaw: p.yaw }); if (this.safe.length > 8) this.safe.shift();
       }
       if (p.y < -3) this.respawn(false, true);

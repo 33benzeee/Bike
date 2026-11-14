@@ -3,8 +3,8 @@ import * as THREE from 'three';
 
 export const TIMES = {
   day: { label: 'Day', top: 0x2f74d0, horizon: 0xbfdcf2, sun: 0xfff1dc, sunI: 2.6, hemiSky: 0xd6e9ff, hemiGround: 0x8a8378, hemiI: 1.9, fog: 0xc3dcf0, fogNear: 160, fogFar: 950, glow: 0, dir: [0.45, 0.8, 0.35], water: 0x2f7396, lamps: 0x8f8f86, exposure: 1.15 },
-  sunset: { label: 'Golden hour', top: 0x2c4a86, horizon: 0xf6b06a, sun: 0xffb46e, sunI: 2.6, hemiSky: 0xf1cdb0, hemiGround: 0x6e6068, hemiI: 1.5, fog: 0xeab183, fogNear: 130, fogFar: 850, glow: 0.3, dir: [-0.72, 0.3, 0.42], water: 0x4a6a8a, lamps: 0xfff0c8, exposure: 1.15 },
-  night: { label: 'Night', top: 0x04060e, horizon: 0x18203a, sun: 0x9db2ff, sunI: 0.7, hemiSky: 0x3a4674, hemiGround: 0x15151d, hemiI: 1.2, fog: 0x0f1528, fogNear: 70, fogFar: 520, glow: 1.0, dir: [0.3, 0.75, -0.4], water: 0x0b1626, lamps: 0xffe6b0, exposure: 1.25 },
+  sunset: { label: 'Golden hour', top: 0x2c4a86, horizon: 0xf6b06a, sun: 0xffb46e, sunI: 2.6, hemiSky: 0xf1cdb0, hemiGround: 0x6e6068, hemiI: 1.5, fog: 0xeab183, fogNear: 130, fogFar: 850, glow: 0.3, pools: 0.12, dir: [-0.72, 0.3, 0.42], water: 0x4a6a8a, lamps: 0xfff0c8, exposure: 1.15 },
+  night: { label: 'Night', top: 0x04060e, horizon: 0x18203a, sun: 0x9db2ff, sunI: 1.3, hemiSky: 0x55639a, hemiGround: 0x2a2a3a, hemiI: 2.6, pools: 0.85, fog: 0x0f1528, fogNear: 70, fogFar: 520, glow: 1.0, dir: [0.3, 0.75, -0.4], water: 0x0b1626, lamps: 0xffe6b0, exposure: 1.25 },
 };
 
 export class Sky {
@@ -57,6 +57,7 @@ export class Sky {
       city.mats.walls.emissiveIntensity = t.glow;
       city.mats.water.color.set(t.water);
       if (city.lampHeads) city.lampHeads.material.color.set(t.lamps);
+      if (city.lampPools) { city.lampPools.visible = !!t.pools; city.lampPools.material.opacity = t.pools || 0; }
     }
   }
 

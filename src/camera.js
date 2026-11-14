@@ -93,8 +93,8 @@ export class CameraRig {
       if (id === 'first') {
         rider.headWorld(_v);
         const hx = Math.sin(phys.yaw), hz = Math.cos(phys.yaw);
-        cam.position.set(_v.x + hx * 0.1, _v.y + 0.04, _v.z + hz * 0.1);
-        cam.rotation.set(phys.pitch * 0.45 - 0.1, phys.yaw + Math.PI - phys.steer * 0.08, phys.lean * 0.65, 'YXZ');
+        cam.position.set(_v.x + hx * 0.06, _v.y + 0.06, _v.z + hz * 0.06);
+        cam.rotation.set(phys.pitch * 0.45 - 0.26, phys.yaw + Math.PI - phys.steer * 0.08, phys.lean * 0.65, 'YXZ');
         fovT += 12;
       } else {
         // bolted to the bars: you feel every degree

@@ -32,10 +32,16 @@ export class BikePhysics {
   reset(x, z, yaw) {
     const sp = this.spec;
     this.x = x; this.z = z; this.yaw = yaw;
-    const h = this.terrain.height(x, z);
-    this.y = h + (sp ? sp.rR + sp.com[1] - 0.02 : 1);
+    // sit the wheels on whatever is under them (the spot may be on a slope)
+    this.pitch = 0; this.y = this.terrain.height(x, z) + 1;
+    if (sp) {
+      const hx = Math.sin(yaw), hz = Math.cos(yaw), cx = sp.com[0], L = sp.wheelbase;
+      const hR = this.terrain.height(x - hx * cx, z - hz * cx), hF = this.terrain.height(x + hx * (L - cx), z + hz * (L - cx));
+      this.pitch = Math.max(-0.6, Math.min(0.6, Math.atan2(hF - hR, L)));
+      this.y = hR + (hF - hR) * (cx / L) + (sp.rR + sp.com[1]) * Math.cos(this.pitch) - 0.02;
+    }
     this.vx = this.vy = this.vz = 0;
-    this.pitch = 0; this.pitchVel = 0;
+    this.pitchVel = 0;
     this.lean = 0; this.leanVel = 0;
     this.steer = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
     this.cx = sp ? sp.com[0] : 0.45; this.cy = sp ? sp.com[1] : 0.5;
@@ -52,7 +58,7 @@ export class BikePhysics {
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
     this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
-    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false;
+    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
     this.events.length = 0;
   }
@@ -93,6 +99,8 @@ export class BikePhysics {
 
     // ---- bunny hop: hold to crouch, release to pop
     const grounded = this.rearContact || this.frontContact;
+    // stopped with the brake held: paddle backwards so you can get off a wall
+    if (grounded && inp.brake > 0.5 && inp.throttle < 0.05 && this.speed < 0.4 && this.speed > -2.5) this.backT += dt; else this.backT = 0;
     if (inp.hop) {
       if (grounded) this.hopCharge = Math.min(0.3, this.hopCharge + dt);
       this._hopHeld = true;
@@ -101,7 +109,7 @@ export class BikePhysics {
       if (this.groundT < 0.12) {
         const k = 0.62 + 0.38 * (this.hopCharge / 0.3);
         this.vy += sp.hop * k;
-        if (this.frontContact) this.pitchVel += 1.3 * k;
+        if (this.frontContact) this.pitchVel += 0.7 * k;
         this.events.push({ type: 'hop', power: k });
       }
       this.hopCharge = 0;
@@ -123,12 +131,16 @@ export class BikePhysics {
     let w = this.vx * lx + this.vz * lz;
     let vy = this.vy;
 
-    const cx = sp.com[0] - this.comShift * sp.leanShift + (inp.comDX || 0);
+    const ct = Math.cos(this.pitch), st = Math.sin(this.pitch);
+    let cx = sp.com[0] - this.comShift * sp.leanShift + (inp.comDX || 0);
+    // climbing something steep, the rider gets over the bars to keep the front down
+    if (inp.assist > 0 && !this.committed && st > 0 && this.frontG > 0.3) cx += Math.min(0.2, st * 0.45) * this.frontG;
     const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
-    const ct = Math.cos(this.pitch), st = Math.sin(this.pitch);
 
     let Fs = -0.6 * sp.cdA * u * Math.abs(u);
+    const backing = this.backT > 0.4;
+    if (backing) Fs += m * clamp((-1.5 - u) * 4, -3, 3);
     let Fy = -m * G;
     let tq = 0;
 
@@ -136,6 +148,7 @@ export class BikePhysics {
     let th = this.throttle, br = this.brakeIn;
     let bF, bR;
     const assist = inp.assist || 0;
+    if (backing) br = 0;
     if (!this.frontContact) { bF = 0; bR = br; } else { bF = br; bR = br * 0.6; }
     this.assistBrake = 0;
     // Rider "wrist" layer. 0 = raw sim, 1 = shaped throttle, 2 = shaped + auto balance.
@@ -168,12 +181,21 @@ export class BikePhysics {
           if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
           driveCap = Math.max(0, th * (Fhold + (surplus * Ie) / yc)); th = 1;
         }
+        if (!this.committed) {
+          // front came up by accident (kerb, landing): the rider dabs the rear brake
+          const over = this.pitch - Math.atan2(cx, cy) + 0.12;
+          const ab = over > 0 ? clamp(5 * over + this.pitchVel * 0.6, 0, 1) : 0;
+          if (ab > bR) { bR = ab; this.assistBrake = ab; }
+        }
       } else if (this.frontContact) {
-        const lift = (m * G * cx) / (cy + sp.rR);
+        // drive force that would just lift the front, plus what the slope itself needs
+        const xg = Math.max(0.06, cx * ct - cy * st), yg = cx * st + cy * ct + sp.rR;
+        const slope = m * G * Math.max(0, st);
+        const lift = (m * G * xg) / yg;
         // seated and not pulling, the rider keeps the front down (mostly — the
         // big bikes still power-wheelie unless you lean over the bars)
-        if (inp.lean < 0.3) driveCap = lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
-        else driveCap = lift * 1.5;
+        if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
+        else driveCap = slope + lift * 1.5;
       }
     }
     this.effThrottle = th;
@@ -288,9 +310,10 @@ export class BikePhysics {
     }
     if (!any) {
       // body english in the air, plus a gentle self-levelling when hands-off
-      tq += inp.lean * I * 7.5 + (this.effThrottle - this.brakeIn) * I * 1.2;
-      if (Math.abs(inp.lean) < 0.15 && assist > 0 && this.airTime > 0.12 && Math.abs(this.pitch) < 1.25) {
-        tq += I * (-7 * (this.pitch - 0.05) - 3.6 * this.pitchVel);
+      tq += inp.lean * I * 7.5;
+      if (this.airTime > 0.2) tq += (this.effThrottle - this.brakeIn) * I * 0.7;
+      if (Math.abs(inp.lean) < 0.15 && assist > 0 && this.airTime > 0.06 && Math.abs(this.pitch) < 1.3) {
+        tq += I * (-12 * (this.pitch - 0.05) - 5.5 * this.pitchVel);
       }
       tq -= this.pitchVel * I * 0.25;
     } else {
@@ -338,7 +361,7 @@ export class BikePhysics {
       this.airYaw = 0;
     } else {
       // airborne: a little whip, lean follows
-      this.airYaw += (this.steer * 1.3 - this.airYaw) * Math.min(1, 6 * h);
+      this.airYaw += (this.steer * 0.7 - this.airYaw) * Math.min(1, 6 * h);
       yawRate = this.airYaw;
       const la = 36 * (this.steer * 0.35 - this.lean) - 9 * this.leanVel;
       this.leanVel += la * h;
@@ -406,7 +429,7 @@ export class BikePhysics {
         const drop = this.airPeak - this.y;
         this.events.push({ type: 'land', airTime: this.airTime, impact, drop, flips: this.flipAccum });
         if (impact > sp.maxImpact) { this._crash('slam', impact); return; }
-        if (Math.abs(this.lat) > 3.5 && Math.abs(this.lat) > 0.55 * Math.abs(this.speed)) { this._crash('sideways', Math.abs(this.lat)); return; }
+        if (Math.abs(this.lat) > 5 && Math.abs(this.lat) > 0.7 * Math.abs(this.speed)) { this._crash('sideways', Math.abs(this.lat)); return; }
       }
       this.airTime = 0; this.groundT = 0; this.flipAccum = 0;
       this.airPeak = this.y;

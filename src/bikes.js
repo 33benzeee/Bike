@@ -42,7 +42,7 @@ export const BIKES = [
     mass: 14, wheelbase: 1.12, rF: 0.37, rR: 0.37, tireW: 0.055,
     com: [0.42, 0.56], leanShift: 0.11, gyr: 0.42,
     drive: { type: 'pedal', maxForce: 330, power: 950, topSpeed: 10.6 },
-    susp: { kF: 30000, cF: 1500, tF: 0.07, kR: 34000, cR: 1600, tR: 0.07 },
+    susp: { kF: 20000, cF: 1400, tF: 0.1, kR: 34000, cR: 1600, tR: 0.07 },
     brake: 0.85, grip: 1.0, offroad: 0.85, cdA: 0.5,
     pullTorque: 1.45, hop: 3.5, leanRate: 10.5, steerMax: 0.75, loopAngle: 1.2, pitchDamp: 0.9,
     wheelieGain: 2.2, wheelieRate: 0.55, unruly: 0, crashSpeed: 6.0, maxImpact: 9.5, wheelieSteer: 0.6,

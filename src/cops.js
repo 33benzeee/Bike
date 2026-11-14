@@ -274,6 +274,8 @@ export class Cops {
         const d = Math.hypot(u.x - p.x, u.z - p.z);
         if (d < (u.car ? 4.6 : 3) && (Math.abs(p.speed) < 2.4 || p.crashed)) grab = 1;
         else if (p.crashed && d < 10) grab = Math.max(grab, 0.6);
+        // sitting still in plain sight: officers get out and walk over
+        else if (u.sees && d < 22 && Math.abs(p.speed) < 1.5) grab = Math.max(grab, 0.4);
       }
       this.bust = clamp(this.bust + (grab > 0 ? grab * dt / 1.3 : -dt * 0.8), 0, 1);
       if (this.bust >= 1) { this._endChase(false); return; }

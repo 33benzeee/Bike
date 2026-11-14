@@ -99,6 +99,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   #t-hop { bottom: calc(126px * var(--u) + var(--sab)); }
 }
 body.touch #hud .bc { bottom: calc(8px + var(--sab)); }
+@media (max-height: 520px) { body.touch #hud .bc { left: 38%; } body.touch #meter { width: clamp(150px, 25vw, 260px); } }
 body.touch #toasts { bottom: auto; top: calc(110px + var(--sat)); flex-direction: column; }
 body.touch #hint { bottom: auto; top: calc(50px * var(--u) + var(--sat)); white-space: normal; text-align: center; max-width: 56vw; }
 

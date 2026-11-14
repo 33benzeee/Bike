@@ -67,8 +67,11 @@ function makeTextures() {
   const dirt = canvasTexture(256, (ctx, s) => {
     ctx.fillStyle = '#dddddd'; ctx.fillRect(0, 0, s, s);
     noise(ctx, s, 5000, 140, 255);
-    ctx.strokeStyle = 'rgba(100,90,80,0.35)'; ctx.lineWidth = 3;
-    for (let k = 0; k < 10; k++) { ctx.beginPath(); const y = Math.random() * s; ctx.moveTo(0, y); ctx.bezierCurveTo(s / 3, y + 20, (2 * s) / 3, y - 20, s, y); ctx.stroke(); }
+    for (let k = 0; k < 40; k++) {
+      const v = 120 + Math.random() * 110;
+      ctx.fillStyle = `rgba(${v},${v * 0.95},${v * 0.88},0.22)`;
+      ctx.beginPath(); ctx.ellipse(Math.random() * s, Math.random() * s, 8 + Math.random() * 26, 6 + Math.random() * 16, Math.random() * 3, 0, 6.2832); ctx.fill();
+    }
   });
   // 4x4 windows per repeat. One map for daylight, one emissive for night.
   const cells = [];
@@ -273,8 +276,8 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
       // kerb-side parked cars
       for (const side of [-1, 1]) {
         for (let t = a + 9; t < b - 9; t += 6.2) {
-          if (rnd() < 0.2) parkCar(c + side * 6.85, t + R(-0.4, 0.4), side > 0 ? Math.PI : 0);
-          if (rnd() < 0.2) parkCar(t + R(-0.4, 0.4), c + side * 6.85, side > 0 ? Math.PI / 2 : -Math.PI / 2);
+          if (rnd() < 0.13) parkCar(c + side * 6.85, t + R(-0.4, 0.4), side > 0 ? Math.PI : 0);
+          if (rnd() < 0.13) parkCar(t + R(-0.4, 0.4), c + side * 6.85, side > 0 ? Math.PI / 2 : -Math.PI / 2);
         }
       }
     }
@@ -310,8 +313,8 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     // street lamps + a few sidewalk trees
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     for (const t of [-18, 18]) {
-      lamp(cx + t, z0 + 0.7, 0); lamp(cx + t, z1 - 0.7, Math.PI);
-      lamp(x0 + 0.7, cz + t, Math.PI / 2); lamp(x1 - 0.7, cz + t, -Math.PI / 2);
+      lamp(cx + t, z0 + 0.7, Math.PI); lamp(cx + t, z1 - 0.7, 0);
+      lamp(x0 + 0.7, cz + t, -Math.PI / 2); lamp(x1 - 0.7, cz + t, Math.PI / 2);
     }
     if (type !== 'T' && type !== 'P' && type !== 'C') {
       for (const t of [-28, -8, 8, 28]) {
@@ -652,7 +655,7 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     group.add(im);
   }
   // instanced street lamps
-  let lampHeads = null;
+  let lampHeads = null, lampPools = null;
   {
     const b = new Batch();
     b.color(0x3a3d42).geom(new THREE.CylinderGeometry(0.07, 0.1, 6, 6), mat(0, 3, 0));
@@ -661,11 +664,20 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     const hb = new Batch();
     hb.color(0xffffff).box(0, 5.78, 1.7, 0.3, 0.1, 0.7, { bottom: true });
     lampHeads = new THREE.InstancedMesh(hb.geometry(), new THREE.MeshBasicMaterial({ color: 0x8f8f86 }), lamps.length);
-    lamps.forEach((l, k) => { const m = mat(l.x, CURB, l.z, 0, l.rot, 0); im.setMatrixAt(k, m); lampHeads.setMatrixAt(k, m); });
-    group.add(im, lampHeads);
+    // pools of light on the ground, switched on at dusk
+    const glow = canvasTexture(64, (ctx, s) => {
+      const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      g.addColorStop(0, 'rgba(255,225,160,1)'); g.addColorStop(0.4, 'rgba(255,210,140,0.45)'); g.addColorStop(1, 'rgba(255,200,120,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+    }, { repeat: false });
+    const pg = new THREE.PlaneGeometry(15, 15).rotateX(-Math.PI / 2).translate(0, 0.03, 1.7);
+    lampPools = new THREE.InstancedMesh(pg, new THREE.MeshBasicMaterial({ map: glow, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), lamps.length);
+    lampPools.visible = false; lampPools.renderOrder = 2;
+    lamps.forEach((l, k) => { const m = mat(l.x, CURB, l.z, 0, l.rot, 0); im.setMatrixAt(k, m); lampHeads.setMatrixAt(k, m); lampPools.setMatrixAt(k, m); });
+    group.add(im, lampHeads, lampPools);
   }
 
   group.traverse((o) => { if (o.isMesh && !o.matrixAutoUpdate) o.updateMatrix(); });
 
-  return { group, mats, parked, blocks, spots, lampHeads, lamps, carColors: CARCOL };
+  return { group, mats, parked, blocks, spots, lampHeads, lampPools, lamps, carColors: CARCOL };
 }

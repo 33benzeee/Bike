@@ -26,7 +26,7 @@ function carGeometry(type) {
   paint.box(0, 0.32 + bodyH + cabH, cabZ, w - 0.2, 0.07, cabL + 0.04);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) paint.box(sx * (w / 2 - 0.13), 0.32 + bodyH, cabZ + sz * (cabL / 2 - 0.05), 0.09, cabH, 0.09, { top: false });
   // wheels, bumpers, lights
-  const wheel = new THREE.CylinderGeometry(0.33, 0.33, 0.24, 10);
+  const wheel = new THREE.CylinderGeometry(0.33, 0.33, 0.24, 8);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) trim.color(0x141416).geom(wheel, mat(sx * (w / 2 - 0.1), 0.33, sz * (len / 2 - 0.85), 0, 0, Math.PI / 2));
   trim.color(0x2a2c30).box(0, 0.3, len / 2, w, 0.25, 0.14).box(0, 0.3, -len / 2, w, 0.25, 0.14);
   trim.color(0xfff4c8).box(-0.62, 0.62, len / 2 + 0.01, 0.34, 0.14, 0.04).box(0.62, 0.62, len / 2 + 0.01, 0.34, 0.14, 0.04);
@@ -35,7 +35,7 @@ function carGeometry(type) {
 }
 
 export class Traffic {
-  constructor(scene, terrain, city, count) {
+  constructor(scene, terrain, city, count, shadows = true) {
     this.scene = scene; this.terrain = terrain; this.city = city;
     this.cars = []; this.dyn = []; this.time = Math.random() * 100;
     this.onNearMiss = null; this.onHonk = null;
@@ -51,7 +51,7 @@ export class Traffic {
       const g = carGeometry(t), total = parked[t].length + perType[t];
       const paint = new THREE.InstancedMesh(g.paint, paintMat, total);
       const trim = new THREE.InstancedMesh(g.trim, trimMat, total);
-      paint.castShadow = trim.castShadow = true; paint.frustumCulled = trim.frustumCulled = false;
+      paint.castShadow = trim.castShadow = shadows; paint.frustumCulled = trim.frustumCulled = false;
       parked[t].forEach((p, k) => {
         _m.copy(mat(p.x, p.y, p.z, 0, p.rot, 0));
         paint.setMatrixAt(k, _m); trim.setMatrixAt(k, _m); paint.setColorAt(k, _c.set(p.color));

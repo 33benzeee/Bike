@@ -37,7 +37,13 @@ export class Batch {
     const ux = bx - ax, uy = by - ay, uz = bz - az;
     const vx = dx - ax, vy = dy - ay, vz = dz - az;
     let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
+    let l = Math.hypot(nx, ny, nz);
+    if (l < 1e-9) {
+      // degenerate edge (triangle fan centre): use the other diagonal
+      const wx = cx - ax, wy = cy - ay, wz = cz - az;
+      nx = uy * wz - uz * wy; ny = uz * wx - ux * wz; nz = ux * wy - uy * wx;
+      l = Math.hypot(nx, ny, nz) || 1;
+    }
     nx /= l; ny /= l; nz /= l;
     const i0 = this._vert(ax, ay, az, nx, ny, nz, u0, v0);
     this._vert(bx, by, bz, nx, ny, nz, u1, v0);

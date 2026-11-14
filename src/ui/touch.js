@@ -24,7 +24,7 @@ export class TouchControls {
     };
     zone.addEventListener('pointerdown', (e) => {
       if (pid !== null) return;
-      pid = e.pointerId; zone.setPointerCapture(pid);
+      pid = e.pointerId; try { zone.setPointerCapture(pid); } catch (err) { /* synthetic pointer */ }
       if (!home) home = { left: stick.style.left, top: stick.style.top, bottom: stick.style.bottom };
       ox = e.clientX; oy = e.clientY; place(ox, oy); move(e);
       e.preventDefault();
@@ -38,7 +38,7 @@ export class TouchControls {
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
 
     const hold = (el, on, off) => {
-      const down = (e) => { el.setPointerCapture(e.pointerId); el.classList.add('on'); on(e); e.preventDefault(); };
+      const down = (e) => { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } el.classList.add('on'); on(e); e.preventDefault(); };
       const up = () => { el.classList.remove('on'); off(); };
       el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
       el.addEventListener('contextmenu', (e) => e.preventDefault());
