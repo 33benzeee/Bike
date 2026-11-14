@@ -50,7 +50,7 @@ export class TouchControls {
     gas.addEventListener('pointermove', (e) => { if (gas.classList.contains('on')) gasLevel(e); });
     hold($('t-brake'), () => { t.brake = 1; }, () => { t.brake = 0; });
     hold($('t-hop'), () => { t.hop = true; }, () => { t.hop = false; });
-    $('t-wheelie').addEventListener('pointerdown', (e) => { input.press('wheelie'); e.preventDefault(); });
+    hold($('t-wheelie'), () => { t.pull = true; }, () => { t.pull = false; });
     hold($('t-reset'), () => input.press('reset'), () => {});
     const burn = $('t-burn');
     burn.addEventListener('pointerdown', (e) => { input.press('burn'); e.preventDefault(); });
@@ -62,6 +62,6 @@ export class TouchControls {
     this.el.classList.toggle('hidden', !on);
     this.input.touch.active = on;
     document.body.classList.toggle('touch', on);
-    if (!on) { const t = this.input.touch; t.throttle = t.brake = t.steer = t.lean = 0; t.hop = false; t.tricks.fill(false); }
+    if (!on) { const t = this.input.touch; t.throttle = t.brake = t.steer = t.lean = 0; t.hop = false; t.pull = false; t.tricks.fill(false); }
   }
 }

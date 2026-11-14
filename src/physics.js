@@ -160,8 +160,6 @@ export class BikePhysics {
     // a bike-specific surplus, so a digital key is still controllable — punchier
     // bikes get a bigger surplus and are easier to loop.
     let driveCap = Infinity;
-    // with the wheelie switch off the rider keeps the front planted, whatever the bike
-    const unruly = inp.wheelieOff ? 0 : sp.unruly || 0;
     if (assist > 0) {
       if (this.rearContact && !this.frontContact) {
         const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
@@ -169,7 +167,7 @@ export class BikePhysics {
         const Fhold = xc > 0 ? (m * G * xc) / yc : 0;
         if (assist >= 2 && th > 0.1) {
           const bp = Math.atan2(cx, cy);
-          const tgt = this.committed ? bp - (u < sp.drive.topSpeed * 0.8 ? 0.07 : 0.01) : unruly * 1.6 + 0.03;
+          const tgt = this.committed ? bp - (u < sp.drive.topSpeed * 0.8 ? 0.07 : 0.01) : (sp.unruly || 0) * 1.6 + 0.03;
           const a = clamp(14 * (tgt - this.pitch) - 6 * this.pitchVel, -9, sp.wheelieGain);
           let F = Fhold + (a * Ie) / yc;
           if (F < 0) {
@@ -184,7 +182,7 @@ export class BikePhysics {
           // past the balance point the rider is already rolling off
           if (xc < 0) surplus *= 0.12;
           // not pulled up on purpose: float a low power-wheelie instead of looping
-          if (!this.committed) surplus = clamp(10 * (unruly * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
+          if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
           driveCap = Math.max(0, th * (Fhold + (surplus * Ie) / yc)); th = 1;
         }
         if (!this.committed) {
@@ -200,17 +198,8 @@ export class BikePhysics {
         const lift = (m * G * xg) / yg;
         // seated and not pulling, the rider keeps the front down (mostly — the
         // big bikes still power-wheelie unless you lean over the bars)
-        if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + unruly * (1 + Math.min(0, inp.lean)));
+        if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
         else driveCap = slope + lift * 1.5;
-      }
-    }
-    if (assist === 0 && inp.wheelieOff && !this.committed && th > 0) {
-      // Sim is raw once you ask for a wheelie; until then the front stays down
-      const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
-      if (this.frontContact) driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * 0.85;
-      else if (this.rearContact) {
-        const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
-        driveCap = Math.max(0, Fhold + (clamp(10 * (0.03 - this.pitch) - 4 * this.pitchVel, -8, 8) * Ie) / yc);
       }
     }
     this.effThrottle = th;

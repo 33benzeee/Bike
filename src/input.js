@@ -3,11 +3,11 @@
 const KEYMAP = {
   KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down',
   KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
-  KeyQ: 'back', KeyE: 'fwd',
+  ShiftLeft: 'back', ShiftRight: 'back', KeyQ: 'back', KeyE: 'fwd',
   Space: 'hop',
   Digit1: 't0', Digit2: 't1', Digit3: 't2', Digit4: 't3', KeyJ: 't0', KeyK: 't1', KeyL: 't2', Semicolon: 't3',
 };
-const ACTIONS = { KeyC: 'camera', KeyR: 'reset', KeyP: 'pause', Escape: 'pause', KeyG: 'garage', KeyM: 'mute', Enter: 'confirm', KeyT: 'time', KeyB: 'burn', ShiftLeft: 'wheelie', ShiftRight: 'wheelie' };
+const ACTIONS = { KeyC: 'camera', KeyR: 'reset', KeyP: 'pause', Escape: 'pause', KeyG: 'garage', KeyM: 'mute', Enter: 'confirm', KeyT: 'time', KeyB: 'burn' };
 
 export class Input {
   constructor() {
@@ -70,13 +70,14 @@ export class Input {
       hop = hop || b(0) > 0.5;
       tr[0] = tr[0] || b(2) > 0.5; tr[1] = tr[1] || b(3) > 0.5; tr[2] = tr[2] || b(1) > 0.5; tr[3] = tr[3] || b(4) > 0.5;
       const edge = (i, a) => { const d = b(i) > 0.5; if (d && !this._padPrev[i]) this.queue.push(a); this._padPrev[i] = d; };
-      edge(5, 'camera'); edge(9, 'pause'); edge(8, 'reset'); edge(0, 'confirm'); edge(10, 'wheelie');
+      edge(5, 'camera'); edge(9, 'pause'); edge(8, 'reset'); edge(0, 'confirm');
       break;
     }
 
     if (t.active) {
       throttle = Math.max(throttle, t.throttle); brake = Math.max(brake, t.brake);
       if (t.steer) steer = t.steer; if (t.lean) lean = t.lean;
+      if (t.pull) lean = 1; // the WHEELIE button is a pull on the bars
       hop = hop || t.hop;
       for (let i = 0; i < 4; i++) tr[i] = tr[i] || t.tricks[i];
     }
