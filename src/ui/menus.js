@@ -129,7 +129,7 @@ export class Menus {
         ${row('TIME OF DAY', '', seg('time', Object.entries(TIMES).map(([k, t]) => [k, t.label])))}
         ${row('CAMERA', 'Switch any time while riding.', seg('camera', CAM_MODES.map((m) => [m.id, m.label])))}
         ${row('SPEED UNITS', '', seg('units', [['mph', 'mph'], ['kmh', 'km/h']]))}
-        ${row('GRAPHICS', 'Auto picks for your device and adapts if the frame rate drops. Changing this reloads.', seg('quality', [['auto', 'Auto'], ['low', 'Low'], ['med', 'Medium'], ['high', 'High']]))}
+        ${row('GRAPHICS', 'Higher is sharper. Auto picks for your device and eases off if the frame rate drops. Changing this reloads.', seg('quality', [['auto', 'Auto'], ['low', 'Low'], ['med', 'Medium'], ['high', 'High']]))}
         ${row('CONTROLS', `Detected: ${DEVICE_LABEL[this.game.device.type]}. Auto switches when you touch the screen or press a key.`, seg('controls', [['auto', 'Auto'], ['touch', 'Touch'], ['keys', 'Keyboard']]))}
         ${row('SOUND', '', seg('mute', [[false, 'On'], [true, 'Off']]))}
         ${row('VOLUME', '', seg('volume', [[0.3, 'Low'], [0.7, 'Medium'], [1, 'High']]))}

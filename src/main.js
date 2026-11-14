@@ -21,9 +21,9 @@ import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
 
 const QUALITY = {
-  low: { pr: 1, shadows: 0, traffic: 20, aa: false },
-  med: { pr: 1.5, shadows: 1, traffic: 30, aa: false },
-  high: { pr: 2, shadows: 2, traffic: 44, aa: true },
+  low: { pr: 1.5, shadows: 0, traffic: 20, aa: false },
+  med: { pr: 2, shadows: 1, traffic: 30, aa: true },
+  high: { pr: 3, shadows: 2, traffic: 44, aa: true },
 };
 const HEAT_NOTE = ['', 'A cruiser is on you', 'Backup is rolling', 'Roadblocks ahead', 'Bike cops — alleys won\'t save you', 'Helicopter! Find cover'];
 const DUST = { 2: [0.42, 0.55, 0.3], 3: [0.62, 0.48, 0.32] };
@@ -37,7 +37,7 @@ class Game {
     document.documentElement.style.setProperty('--u', this.device.type === 'tablet' ? '1.3' : '1');
 
     let q = st.quality;
-    if (!QUALITY[q]) q = this.device.type === 'desktop' ? 'high' : (navigator.hardwareConcurrency || 4) <= 4 && this.device.type === 'phone' ? 'low' : 'med';
+    if (!QUALITY[q]) q = this.device.type === 'desktop' ? 'high' : 'med';
     this.q = { ...QUALITY[q] }; this.qName = q;
 
     const canvas = document.getElementById('game');
@@ -459,11 +459,12 @@ class Game {
     const f = this.fps; f.t += raw; f.n++;
     if (f.t < 2.5) return;
     const fps = f.n / f.t; f.t = 0; f.n = 0;
-    if (fps < 33) f.low++; else f.low = 0;
+    if (fps < 27) f.low++; else f.low = 0;
     if (f.low >= 2) {
       f.low = 0;
-      if (this.pr > 0.8) { this.pr = Math.max(0.75, this.pr - 0.25); this.resize(); }
-      else if (this.renderer.shadowMap.enabled && this.sky.sun.castShadow) { this.sky.sun.castShadow = false; }
+      // sharpness comes first: shed shadows before resolution, and never go blurry
+      if (this.renderer.shadowMap.enabled && this.sky.sun.castShadow) { this.sky.sun.castShadow = false; }
+      else if (this.pr > 1.5) { this.pr = Math.max(1.5, this.pr - 0.25); this.resize(); }
     }
   }
 }
