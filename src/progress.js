@@ -1,7 +1,7 @@
 // Save data (localStorage), stats and challenges.
 import { BIKES } from './bikes.js';
 
-const KEY = 'wheelie-works-save-v1';
+const KEY = 'wheelie-works-save-v2';
 
 export const CHALLENGES = [
   { id: 'w50', name: 'Back Wheel Basics', desc: 'Wheelie for 50 m', reward: 150, stat: 'wheelieDist', goal: 50 },

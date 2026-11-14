@@ -73,7 +73,7 @@ export class Menus {
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
         <button class="btn" data-a="go" data-v="settings">SETTINGS</button>
-        <button class="btn" data-a="go" data-v="cheats">CHEAT CODES</button>
+        <button class="btn" data-a="go" data-v="cheats">CODES</button>
         ${pause ? '<button class="btn" data-a="quit">QUIT TO TITLE</button>' : ''}
       </div>
       <div class="foot">Playing on <b>${dev}</b> with <b>${how}</b>${g.device.type === 'desktop' ? ' · gamepads work too' : ''}</div>
@@ -151,11 +151,11 @@ export class Menus {
   _cheats() {
     const r = this._cheatMsg; this._cheatMsg = null;
     return `<div class="screen center"><div class="col panel">
-      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">CHEAT CODES</div><div class="cash">${money(this.game.save.cash)}</div></div>
+      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">CODES</div><div class="cash">${money(this.game.save.cash)}</div></div>
       <div class="scroll">
         <div class="cheat"><input id="cheat-code" type="text" maxlength="16" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
           <button class="cta" data-a="cheat">ENTER</button></div>
-        ${r ? `<div class="tip ${r.ok ? 'good' : 'bad'}">${r.msg}</div>` : '<div class="tip">Type a code and press ENTER. Codes can be used as often as you like.</div>'}
+        ${r ? `<div class="tip ${r.ok ? 'good' : 'bad'}">${r.msg}</div>` : '<div class="tip">Type a code and press ENTER.</div>'}
       </div></div></div>`;
   }
 

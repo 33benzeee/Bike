@@ -217,7 +217,7 @@ class Game {
     }
   }
   pause() { if (this.state !== 'play') return; this.state = 'pause'; this.tricks.bankNow(); this.menus.show('pause'); this.touch.show(false); this.input.enabled = false; }
-  resume() { this.state = 'play'; this.menus.hide(); this.input.enabled = true; this.input.queue.length = 0; this._updateControlsMode(); this.last = performance.now(); }
+  resume() { this.state = 'play'; this.menus.hide(); this.hud.show(true); this.input.enabled = true; this.input.queue.length = 0; this._updateControlsMode(); this.last = performance.now(); }
   toTitle() { this.tricks.bankNow(); this.cops.reset(this.phys.x, this.phys.z); this.respawn(true, true); this.state = 'title'; this.hud.show(false); this.touch.show(false); this.menus.show('title'); }
 
   openGarage() {
@@ -240,24 +240,13 @@ class Game {
     else if (key === 'camera') this.rig.set(val);
     else if (key === 'volume' || key === 'mute') this.audio.setVolume(st.volume, st.mute);
     else if (key === 'controls') this._updateControlsMode();
-    else if (key === 'quality') { try { localStorage.setItem('wheelie-works-save-v1', JSON.stringify(this.save.data)); } catch (e) { /* ignore */ } location.reload(); }
+    else if (key === 'quality') { try { localStorage.setItem('wheelie-works-save-v2', JSON.stringify(this.save.data)); } catch (e) { /* ignore */ } location.reload(); }
   }
 
   // returns { ok, msg } for the cheat-code screen
   applyCheat(raw) {
     const code = String(raw || '').trim().toUpperCase(), s = this.save;
     if (!code) return { ok: false, msg: 'Type a code first.' };
-    if (code === 'BBV33') { s.earn(25000); return { ok: true, msg: `Cha-ching. +${money(25000)} — you now have ${money(s.cash)}.` }; }
-    if (code === 'GARAGE') {
-      for (const id in BIKE_BY_ID) if (!s.data.owned[id]) s.data.owned[id] = { up: {}, paint: 0 };
-      s.persist(); return { ok: true, msg: 'Every bike is now in your garage.' };
-    }
-    if (code === 'MAXOUT') {
-      const e = s.entry();
-      for (const k of ['battery', 'controller', 'sprocket', 'tires']) e.up[k] = UPGRADE_LEVELS;
-      s.persist(); const spec = this.specOf(s.data.bike); this.phys.setSpec(spec); this.model.spec = spec;
-      return { ok: true, msg: `${BIKE_BY_ID[s.data.bike].name} is fully upgraded.` };
-    }
     if (code === 'NOCOPS') {
       this.noCops = !this.noCops;
       if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);
