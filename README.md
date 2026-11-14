@@ -43,7 +43,8 @@ they go away. Everything can be overridden in **Settings**.
 | One-hander / no-hander / seat stander / foot drag | `1` `2` `3` `4` (or `J` `K` `L` `;`) | Trick buttons | X / Y / B / LB |
 | Burnout mode on/off (motor bikes): then hold throttle, steer to spin | `B` | BURNOUT | — |
 | Camera (chase, far, first person, handlebar) | `C` | CAM | RB |
-| Reset to the road | `R` | RESET | Back |
+| Reset to the road (riding) / bring the bike to you (on foot) | `R` | RESET / CALL BIKE | Back |
+| Get on the bike when standing next to it | `F` | GET ON | — |
 | Pause, garage, mute, time of day | `P`, `G`, `M`, `T` | II | Start |
 
 **Your first wheelie:** get rolling, hold throttle and lean back. Feather the throttle to

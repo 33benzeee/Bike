@@ -171,7 +171,8 @@ export class Menus {
       <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>One-hander, no-hander, seat stander, foot drag (also <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>) — hold during a wheelie or in the air</span>
       <span><kbd>B</kbd></span><span>Burnout mode on / off — then hold throttle to light up the rear tyre, steer to spin donuts (motor bikes only)</span>
       <span><kbd>C</kbd></span><span>Change camera</span>
-      <span><kbd>R</kbd></span><span>Reset to the road</span>
+      <span><kbd>R</kbd></span><span>Riding: reset to the road. After a crash: get up right away, then <kbd>R</kbd> again brings your bike to you</span>
+      <span><kbd>F</kbd></span><span>Get on the bike when you're standing next to it</span>
       <span><kbd>G</kbd> <kbd>P</kbd> <kbd>M</kbd> <kbd>T</kbd></span><span>Garage, pause, mute, time of day</span>
     </div>`;
     const touch = `<div class="keys">
@@ -182,6 +183,7 @@ export class Menus {
       <span class="k"><b>HOP</b></span><span>Hold to crouch, release to bunny hop.</span>
       <span class="k"><b>Trick buttons</b></span><span>Hold during a wheelie or in the air.</span>
       <span class="k"><b>BURNOUT</b></span><span>Switch burnout mode on or off. With it on, hold GAS to smoke the rear tyre and steer to spin (motor bikes only).</span>
+      <span class="k"><b>RESET / CALL BIKE</b></span><span>Riding: puts you back on the road. On foot after a crash: brings your bike to you. Walk with the stick and GAS, then tap <b>GET ON</b> next to the bike.</span>
       <span class="k"><b>CAM / II</b></span><span>Change camera, pause.</span>
     </div>`;
     const pad = `<div class="keys">

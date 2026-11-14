@@ -41,6 +41,22 @@ export class CameraRig {
     this.snap = true;
   }
 
+  // third-person follow while walking
+  foot(dt, f) {
+    const cam = this.camera;
+    this.yaw += angDiff(f.yaw, this.yaw) * Math.min(1, dt * 3.2);
+    const sx = Math.sin(this.yaw), sz = Math.cos(this.yaw);
+    let d = 4.4, cx = f.x - sx * d, cz = f.z - sz * d;
+    if (this._blocked(cx, cz)) for (let k = 0.8; k > 0.2; k -= 0.15) { cx = f.x - sx * d * k; cz = f.z - sz * d * k; if (!this._blocked(cx, cz)) break; }
+    _v.set(cx, Math.max(f.y + 2.1, this.terrain.height(cx, cz) + 0.6), cz);
+    _t.set(f.x, f.y + 1.2, f.z);
+    if (this.snap) { this.pos.copy(_v); this.look.copy(_t); this.snap = false; }
+    this.pos.lerp(_v, Math.min(1, dt * 6)); this.look.lerp(_t, Math.min(1, dt * 10));
+    cam.position.copy(this.pos); cam.lookAt(this.look);
+    this.fov += (62 - this.fov) * Math.min(1, dt * 3);
+    if (Math.abs(cam.fov - this.fov) > 0.05) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
+  }
+
   update(dt, phys, model, rider) {
     const cam = this.camera, id = this.id;
     const speed = Math.abs(phys.speed);

@@ -217,3 +217,8 @@ kbd { display: inline-block; background: #fff; color: #000; border-radius: 4px; 
   #tricks { bottom: calc(22px * var(--u) + var(--sab)); }
   #t-wheelie { bottom: calc(190px * var(--u) + var(--sab)); height: calc(52px * var(--u)); }
 }
+
+/* on foot */
+#t-mount { left: 50%; bottom: calc(96px * var(--u) + var(--sab)); transform: translateX(-50%); width: calc(150px * var(--u)); height: calc(54px * var(--u)); border-radius: calc(12px * var(--u)); background: var(--yel) !important; color: #000 !important; border-color: var(--yel) !important; font-size: calc(18px * var(--u)) !important; }
+body.onfoot #t-hop, body.onfoot #t-wheelie, body.onfoot #tricks, body.onfoot #t-burn { display: none; }
+body.onfoot #t-reset { width: calc(96px * var(--u)); }

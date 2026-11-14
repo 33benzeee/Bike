@@ -1,6 +1,6 @@
 // Wheelie Works — game bootstrap and main loop.
 import * as THREE from 'three';
-import { Terrain } from './world/terrain.js';
+import { Terrain, circleVsObstacle } from './world/terrain.js';
 import { buildCity, CURB } from './world/city.js';
 import { Sky, TIMES } from './world/sky.js';
 import { BikePhysics } from './physics.js';
@@ -157,7 +157,7 @@ class Game {
     const h = this.city.spots.home;
     if (keepPos) this.phys.reset(x, z, yaw); else this.phys.reset(h.x, h.z, h.yaw);
     this.rig.snap = true; this.safe.length = 0;
-    this.burnout = false;
+    this.burnout = false; this.foot = null; this.nearBike = false; document.body.classList.remove('onfoot');
     const bp = document.getElementById('burn'); if (bp) { bp.classList.add('hidden'); document.getElementById('t-burn').classList.remove('on'); }
   }
 
@@ -262,6 +262,7 @@ class Game {
 
   respawn(home, quiet) {
     const p = this.phys, h = this.city.spots.home;
+    this._footUI(false);
     this.rider.endRagdoll(this.model.group);
     const s = !home && this.safe.length ? this.safe[Math.max(0, this.safe.length - 3)] : null;
     if (s) p.reset(s.x, s.z, s.yaw); else p.reset(h.x, h.z, h.yaw);
@@ -329,7 +330,12 @@ class Game {
       document.getElementById('burn').classList.toggle('hidden', !this.burnout);
       document.getElementById('t-burn').classList.toggle('on', this.burnout);
     }
-    if (input.take('reset')) { if (!p.crashed || p.crashT > 0.6) { this.tricks.crash(); this.respawn(false); } }
+    if (input.take('reset')) {
+      if (this.foot) this._callBike();
+      else if (p.crashed) { if (p.crashT > 0.5) this._getUp(); }
+      else { this.tricks.crash(); this.respawn(false); }
+    }
+    if (input.take('mount')) this._mount();
     input.take('confirm');
 
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
@@ -355,7 +361,7 @@ class Game {
         if (e.cop) this.hitCop = true; else if (e.ref) this.traffic.bumped(e.ref);
         this.effects.sparks(p.x, groundY + 0.3, p.z, 16, p.vx, p.vz); this.effects.dust(p.x, groundY, p.z, 8, [0.6, 0.6, 0.6]);
         const msg = { loopout: 'LOOPED OUT', endo: 'OVER THE BARS', hit: 'WRECKED', slam: 'SLAMMED', sideways: 'HIGH-SIDED', slide: 'LOW-SIDED' }[e.reason] || 'CRASHED';
-        hud.banner(msg, this.touchOn ? 'Tap RESET to get back up' : 'Press R to get back up', 'yel', 2.2);
+        hud.banner(msg, '', 'yel', 2);
       }
     }
     const sm = st.assist === 0 ? 1.4 : st.assist === 2 ? 0.6 : 1;
@@ -364,7 +370,11 @@ class Game {
     p.events.length = 0;
 
     // ---- crashes and respawns
-    if (p.crashed) { if (p.crashT > 3.2 && !this.cops.wanted) this.respawn(false, true); else if (p.crashT > 3.6) this.respawn(false, true); }
+    // No automatic respawn: once the tumble is over you get up and walk.
+    if (p.crashed) {
+      if (!this.foot && (p.crashT > 4 || (p.crashT > 1.4 && this.rider.ragdollSpeed() < 0.7))) this._getUp();
+      if (this.foot) this._walk(dt, s, dyn);
+    }
     else {
       this.safeT += dt;
       if (this.safeT > 0.5 && p.rearContact && p.frontContact && Math.abs(p.speed) > 2.5 && Math.abs(p.lean) < 0.5 && Math.abs(p.pitch) < 0.12) {
@@ -375,12 +385,13 @@ class Game {
     if (this.respawnGrace > 0) this.respawnGrace -= dt;
     this.save.stat('topSpeed', Math.abs(p.speed));
 
-    // ---- world
-    this.traffic.update(dt, p, this.cops.units);
+    // ---- world (follows the rider: on the bike, or on foot)
+    const pp = this.foot || p;
+    this.traffic.update(dt, pp, this.cops.units);
     const offence = p.crashed ? 0 : p.wheelieT > 0.5 ? 1 : (p.frontContact && !p.rearContact && p.pitch < -0.2) ? 0.8 : p.rearLocked ? 0.3 : p.airTime > 0.6 ? 0.5 : 0;
-    this.cops.update(dt, { x: p.x, y: p.y, z: p.z, vx: p.vx, vz: p.vz, speed: p.speed, crashed: p.crashed && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto', hitCop: this.hitCop, groundY, topSpeed: spec.drive.topSpeed }, this.traffic);
+    this.cops.update(dt, { x: pp.x, y: pp.y, z: pp.z, vx: pp.vx, vz: pp.vz, speed: pp.speed, crashed: p.crashed && !this.foot && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto' && !this.foot, hitCop: this.hitCop, groundY: this.foot ? this.foot.y : groundY, topSpeed: spec.drive.topSpeed }, this.traffic);
 
-    if (this.noCops) { this.cops.suspicion = 0; if (this.cops.wanted) this.cops.reset(p.x, p.z); }
+    if (this.noCops) { this.cops.suspicion = 0; if (this.cops.wanted) this.cops.reset(pp.x, pp.z); }
 
     // ---- effects
     const rx = p.x + hx * p.rsR, rz = p.z + hz * p.rsR, ry = this.terrain.height(rx, rz);
@@ -397,8 +408,8 @@ class Game {
 
     this._visual(dt, { one: s.tricks[0], no: s.tricks[1], stand: s.tricks[2], drag: s.tricks[3] });
     this.rider.setFirstPerson(this.rig.id === 'first' && !p.crashed);
-    this.rig.update(dt, p, model, this.rider);
-    this.sky.update(p.x, p.y, p.z);
+    if (this.foot) this.rig.foot(dt, this.foot); else this.rig.update(dt, p, model, this.rider);
+    this.sky.update(pp.x, pp.y, pp.z);
 
     // headlight
     if (this.sky.night && !p.crashed) {
@@ -411,7 +422,7 @@ class Game {
     // ---- audio
     let siren = 0, heli = 0;
     if (this.cops.wanted) for (const u of this.cops.units) {
-      const d = Math.hypot(u.x - p.x, u.z - p.z);
+      const d = Math.hypot(u.x - pp.x, u.z - pp.z);
       if (u.heli) heli = Math.max(heli, 1 - d / 260); else if (u.chasing || u.state === 'block') siren = Math.max(siren, 1 - d / 230);
     }
     this.audio.update(dt, { speed: p.speed, wheelSpeed: p.spinR * spec.rR, topSpeed: spec.drive.topSpeed, throttle: p.effThrottle, electric: spec.drive.type === 'electric', big: spec.variant === 'varg', grounded: p.rearContact || p.frontContact, surface: p.surface, skid: sliding, siren: Math.max(0, siren), heli: Math.max(0, heli), active: !p.crashed });
@@ -419,12 +430,81 @@ class Game {
     // ---- HUD
     const cp = this.cops;
     hud.update(dt, {
-      speed: p.speed, units: st.units, cash: this.save.cash, heat: cp.heat, wanted: cp.wanted, seen: cp.seen, hidden: cp.hidden,
+      speed: pp.speed, units: st.units, cash: this.save.cash, heat: cp.heat, wanted: cp.wanted, seen: cp.seen, hidden: cp.hidden,
       evade: cp.evadeNeed ? cp.evade / cp.evadeNeed : 0, suspicion: cp.suspicion, watcher: cp.watcher, bust: cp.bust,
       combo: this.tricks.combo, label: this.tricks.label, zone: this.tricks.zone,
       wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
     });
-    if (this.frameN % 2 === 0) hud.minimap(p.x, p.z, p.yaw, cp.units, cp.wanted);
+    if (this.frameN % 2 === 0) hud.minimap(pp.x, pp.z, pp.yaw, cp.units, cp.wanted);
+  }
+
+  // ---- on foot ---------------------------------------------------------------
+  _footUI(on) {
+    if (!on) { this.foot = null; this.nearBike = false; }
+    document.body.classList.toggle('onfoot', on);
+    document.getElementById('t-reset').textContent = on ? 'CALL BIKE' : 'RESET';
+    document.getElementById('t-mount').classList.add('hidden');
+    if (!on) this.hud.hintEl.classList.remove('show');
+  }
+
+  // the tumble is over: stand up where you landed
+  _getUp() {
+    const p = this.phys, r = p.rag;
+    this.foot = { x: r.x, y: this.terrain.height(r.x, r.z), z: r.z, yaw: p.yaw, speed: 0, vx: 0, vz: 0, phase: 0, rise: 0, callT: 0 };
+    this.rider.beginWalk(this.scene);
+    this._footUI(true); this.rig.snap = false;
+    this.hud.hint(this.touchOn ? 'Walk back to your bike with the stick and GAS · <b>CALL BIKE</b> brings it to you'
+      : 'Walk back to your bike (<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) · <kbd>R</kbd> brings the bike to you', 6);
+  }
+
+  _walk(dt, s, dyn) {
+    const f = this.foot, T = this.terrain, p = this.phys, hit = this._hit || (this._hit = { nx: 0, nz: 0 });
+    f.rise = Math.min(1, f.rise + dt * 2);
+    f.callT = Math.max(0, f.callT - dt);
+    const can = f.rise >= 1 ? 1 : 0;
+    f.yaw += s.steer * 2.9 * dt * can;
+    const want = (s.throttle - s.brake * 0.55) * 4.8 * can;
+    f.speed += Math.max(-14 * dt, Math.min(10 * dt, want - f.speed));
+    let nx = f.x + Math.sin(f.yaw) * f.speed * dt, nz = f.z + Math.cos(f.yaw) * f.speed * dt;
+    if (T.height(nx, nz) - f.y > 0.6) { nx = f.x; nz = f.z; f.speed = 0; } // too tall to step onto
+    const push = (o) => {
+      if (o.carOnly || o.y1 < f.y + 0.45) return;
+      const pen = circleVsObstacle(o, nx, nz, 0.32, hit);
+      if (pen > 0) { nx += hit.nx * pen; nz += hit.nz * pen; }
+    };
+    T.query(nx, nz, 0.6, push);
+    for (const o of dyn) push(o);
+    f.vx = (nx - f.x) / dt; f.vz = (nz - f.z) / dt; f.x = nx; f.z = nz;
+    f.y += (T.height(f.x, f.z) - f.y) * Math.min(1, dt * 12);
+    f.phase += Math.abs(f.speed) * dt * 2.7;
+    // close enough to pick the bike up?
+    const near = Math.hypot(p.x - f.x, p.z - f.z) < 2.8;
+    if (near !== this.nearBike) {
+      this.nearBike = near;
+      document.getElementById('t-mount').classList.toggle('hidden', !near);
+      if (near && !this.touchOn) this.hud.hint('Press <kbd>F</kbd> to get on', 600); else if (!near) this.hud.hintEl.classList.remove('show');
+    }
+  }
+
+  _mount() {
+    const f = this.foot, p = this.phys;
+    if (!f || Math.hypot(p.x - f.x, p.z - f.z) > 2.8) return;
+    const x = p.x, z = p.z, yaw = f.yaw;
+    this._footUI(false);
+    this.rider.endRagdoll(this.model.group);
+    p.reset(x, z, yaw);
+    this.respawnGrace = 1; this.rig.snap = false; this.audio.ui();
+  }
+
+  // "respawn bike": drops the bike next to you
+  _callBike() {
+    const f = this.foot, p = this.phys;
+    if (!f || f.callT > 0) return;
+    f.callT = 1.5;
+    p.x = f.x - Math.cos(f.yaw) * 1.3; p.z = f.z + Math.sin(f.yaw) * 1.3;
+    p.y = this.terrain.height(p.x, p.z) + 0.3; p.vx = p.vy = p.vz = 0; p.yaw = f.yaw; p.bikeYawVel = 0;
+    this.effects.dust(p.x, p.y - 0.3, p.z, 8, [0.8, 0.8, 0.8]);
+    this.audio.ui();
   }
 
   // place the bike + rider meshes from the physics state
@@ -432,12 +512,12 @@ class Game {
     const p = this.phys, model = this.model, g = model.group, sp = model.spec;
     const hx = Math.sin(p.yaw), hz = Math.cos(p.yaw);
     if (p.crashed) {
-      this.rider.beginRagdoll(this.scene, g, p, this.terrain);
+      if (!this.foot) this.rider.beginRagdoll(this.scene, g, p, this.terrain);
       g.position.set(p.x - hx * sp.wheelbase * 0.4, p.y - 0.05, p.z - hz * sp.wheelbase * 0.4);
       g.rotation.set(-p.pitch, p.yaw, -p.lean, 'YXZ');
       g.updateMatrixWorld(true);
       poseBike(model, p, dt);
-      this.rider.updateRagdoll(dt, p.rag);
+      if (this.foot) this.rider.updateWalk(dt, this.foot); else this.rider.updateRagdoll(dt, p.rag);
       return;
     }
     const r = sp.rR;
