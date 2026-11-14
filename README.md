@@ -5,6 +5,8 @@ through a city, hold wheelies on the balance point, chain tricks into combos, sl
 through traffic and outrun the cops. Built with [three.js](https://threejs.org/) — no
 build step, no downloaded assets (models, textures and sound are all generated in code).
 
+![A no-hander wheelie on the Surron at golden hour](docs/screenshot.jpg)
+
 ## Play
 
 Any static file server works:

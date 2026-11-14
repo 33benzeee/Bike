@@ -12,7 +12,7 @@ const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const nodeOf = (v) => clamp(Math.round(v / PITCH + N / 2), 0, N);
 
-export const HEAT_REWARD = [0, 250, 600, 1400, 3000, 6000];
+export const HEAT_REWARD = [0, 120, 600, 1400, 3000, 6000];
 const HEAT_TIME = [0, 0, 26, 58, 95, 135]; // seconds of being seen to reach each level
 const CRUISERS = [0, 1, 2, 4, 5, 6];
 const CAR_SPEED = [0, 19, 23, 27, 31, 35];
