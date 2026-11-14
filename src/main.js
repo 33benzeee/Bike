@@ -125,6 +125,7 @@ class Game {
     document.getElementById('btn-cam').addEventListener('click', () => this.input.press('camera'));
     document.getElementById('btn-pause').addEventListener('click', () => this.input.press('pause'));
     this.renderer.domElement.addEventListener('pointerdown', () => this.audio.start());
+    document.getElementById('rotate-skip').addEventListener('click', () => { document.body.classList.add('portrait-ok'); this.resize(); });
   }
 
   _updateControlsMode() {

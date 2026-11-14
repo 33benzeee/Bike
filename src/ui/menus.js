@@ -45,7 +45,7 @@ export class Menus {
       case 'up': if (g.buyUpgrade(this.sel, v)) au.bank(false); else au.deny(); this.show('garage'); break;
       case 'paint': au.ui(); g.setPaint(this.sel, +v); this.show('garage'); break;
       case 'set': { au.ui(); const [k, val] = v.split(':'); g.applySetting(k, isNaN(+val) || val === '' ? val : +val); this.refresh(); break; }
-      case 'wipe': if (window.confirm('Erase all progress — cash, bikes and upgrades?')) { g.wipeSave(); this.show('title'); } break;
+      case 'wipe': if (this._wipe) { this._wipe = false; g.wipeSave(); } else { this._wipe = true; au.deny(); this.refresh(); setTimeout(() => { if (this._wipe) { this._wipe = false; if (this.current === 'settings') this.refresh(); } }, 4000); } break;
       default: break;
     }
   }
@@ -123,7 +123,7 @@ export class Menus {
         ${row('CONTROLS', `Detected: ${DEVICE_LABEL[this.game.device.type]}. Auto switches when you touch the screen or press a key.`, seg('controls', [['auto', 'Auto'], ['touch', 'Touch'], ['keys', 'Keyboard']]))}
         ${row('SOUND', '', seg('mute', [[false, 'On'], [true, 'Off']]))}
         ${row('VOLUME', '', seg('volume', [[0.3, 'Low'], [0.7, 'Medium'], [1, 'High']]))}
-        ${row('RESET PROGRESS', 'Deletes your save from this browser.', '<div class="seg"><button data-a="wipe">Erase save</button></div>')}
+        ${row('RESET PROGRESS', 'Deletes your save from this browser.', `<div class="seg"><button data-a="wipe" class="${this._wipe ? 'on' : ''}">${this._wipe ? 'Tap again to erase everything' : 'Erase save'}</button></div>`)}
       </div></div></div>`;
   }
 
