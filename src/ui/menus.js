@@ -12,6 +12,7 @@ export class Menus {
   constructor(game) {
     this.game = game; this.root = document.getElementById('screens');
     this.current = null; this.parent = 'title'; this.sel = game.save.data.bike;
+    this.root.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'cheat-code') { e.preventDefault(); this.game.audio.start(); this._act('cheat'); } });
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
       if (!b || b.disabled) return;
@@ -26,6 +27,7 @@ export class Menus {
     const html = name ? this['_' + name]() : '';
     this.root.innerHTML = html;
     if (name === 'garage') this.game.previewBike(this.sel);
+    if (name === 'cheats' && this.game.device.type === 'desktop') { const i = this.root.querySelector('#cheat-code'); if (i) i.focus(); }
   }
 
   hide() { this.current = null; this.root.innerHTML = ''; }
@@ -46,6 +48,13 @@ export class Menus {
       case 'paint': au.ui(); g.setPaint(this.sel, +v); this.show('garage'); break;
       case 'set': { au.ui(); const [k, val] = v.split(':'); g.applySetting(k, isNaN(+val) || val === '' ? val : +val); this.refresh(); break; }
       case 'wipe': if (this._wipe) { this._wipe = false; g.wipeSave(); } else { this._wipe = true; au.deny(); this.refresh(); setTimeout(() => { if (this._wipe) { this._wipe = false; if (this.current === 'settings') this.refresh(); } }, 4000); } break;
+      case 'cheat': {
+        const inp = this.root.querySelector('#cheat-code');
+        const r = g.applyCheat(inp ? inp.value : '');
+        if (r.ok) au.bank(true); else au.deny();
+        this._cheatMsg = r; this.show('cheats');
+        break;
+      }
       default: break;
     }
   }
@@ -64,6 +73,7 @@ export class Menus {
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
         <button class="btn" data-a="go" data-v="settings">SETTINGS</button>
+        <button class="btn" data-a="go" data-v="cheats">CHEAT CODES</button>
         ${pause ? '<button class="btn" data-a="quit">QUIT TO TITLE</button>' : ''}
       </div>
       <div class="foot">Playing on <b>${dev}</b> with <b>${how}</b>${g.device.type === 'desktop' ? ' · gamepads work too' : ''}</div>
@@ -136,6 +146,17 @@ export class Menus {
     return `<div class="screen center"><div class="col panel">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">CHALLENGES<small>${Object.keys(s.data.done).length} of ${CHALLENGES.length}</small></div><div class="cash">${money(s.cash)}</div></div>
       <div class="scroll">${items}</div></div></div>`;
+  }
+
+  _cheats() {
+    const r = this._cheatMsg; this._cheatMsg = null;
+    return `<div class="screen center"><div class="col panel">
+      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">CHEAT CODES</div><div class="cash">${money(this.game.save.cash)}</div></div>
+      <div class="scroll">
+        <div class="cheat"><input id="cheat-code" type="text" maxlength="16" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
+          <button class="cta" data-a="cheat">ENTER</button></div>
+        ${r ? `<div class="tip ${r.ok ? 'good' : 'bad'}">${r.msg}</div>` : '<div class="tip">Type a code and press ENTER. Codes can be used as often as you like.</div>'}
+      </div></div></div>`;
   }
 
   _controls() {

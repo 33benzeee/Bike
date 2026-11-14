@@ -243,6 +243,29 @@ class Game {
     else if (key === 'quality') { try { localStorage.setItem('wheelie-works-save-v1', JSON.stringify(this.save.data)); } catch (e) { /* ignore */ } location.reload(); }
   }
 
+  // returns { ok, msg } for the cheat-code screen
+  applyCheat(raw) {
+    const code = String(raw || '').trim().toUpperCase(), s = this.save;
+    if (!code) return { ok: false, msg: 'Type a code first.' };
+    if (code === 'BBV33') { s.earn(25000); return { ok: true, msg: `Cha-ching. +${money(25000)} — you now have ${money(s.cash)}.` }; }
+    if (code === 'GARAGE') {
+      for (const id in BIKE_BY_ID) if (!s.data.owned[id]) s.data.owned[id] = { up: {}, paint: 0 };
+      s.persist(); return { ok: true, msg: 'Every bike is now in your garage.' };
+    }
+    if (code === 'MAXOUT') {
+      const e = s.entry();
+      for (const k of ['battery', 'controller', 'sprocket', 'tires']) e.up[k] = UPGRADE_LEVELS;
+      s.persist(); const spec = this.specOf(s.data.bike); this.phys.setSpec(spec); this.model.spec = spec;
+      return { ok: true, msg: `${BIKE_BY_ID[s.data.bike].name} is fully upgraded.` };
+    }
+    if (code === 'NOCOPS') {
+      this.noCops = !this.noCops;
+      if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);
+      return { ok: true, msg: this.noCops ? 'Cops are ignoring you until you reload or enter NOCOPS again.' : 'Cops are back on duty.' };
+    }
+    return { ok: false, msg: `"${code}" isn't a code.` };
+  }
+
   wipeSave() { this.save.reset(); location.reload(); }
 
   respawn(home, quiet) {
@@ -357,6 +380,8 @@ class Game {
     this.traffic.update(dt, p, this.cops.units);
     const offence = p.crashed ? 0 : p.wheelieT > 0.5 ? 1 : (p.frontContact && !p.rearContact && p.pitch < -0.2) ? 0.8 : p.rearLocked ? 0.3 : p.airTime > 0.6 ? 0.5 : 0;
     this.cops.update(dt, { x: p.x, y: p.y, z: p.z, vx: p.vx, vz: p.vz, speed: p.speed, crashed: p.crashed && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto', hitCop: this.hitCop, groundY, topSpeed: spec.drive.topSpeed }, this.traffic);
+
+    if (this.noCops) { this.cops.suspicion = 0; if (this.cops.wanted) this.cops.reset(p.x, p.z); }
 
     // ---- effects
     const rx = p.x + hx * p.rsR, rz = p.z + hz * p.rsR, ry = this.terrain.height(rx, rz);
