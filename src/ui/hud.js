@@ -107,10 +107,10 @@ export class Hud {
     const w = d.wheelie;
     this.meter.classList.toggle('hidden', !w.show);
     if (w.show) {
-      const max = w.loop + 0.24;
+      const max = w.loop + 0.14;
       this.needle.style.left = Math.max(0, Math.min(1, w.pitch / max)) * 100 + '%';
       this.zone.style.left = ((w.bp - 0.1) / max) * 100 + '%'; this.zone.style.width = (0.2 / max) * 100 + '%';
-      this.danger.style.width = (0.37 / max) * 100 + '%';
+      this.danger.style.width = (0.27 / max) * 100 + '%';
       this.meter.classList.toggle('sweet', d.zone === 1); this.meter.classList.toggle('risk', d.zone === 2 || w.pitch > w.loop - 0.2);
       this.cap.textContent = d.zone === 2 ? '12 O\'CLOCK!' : d.zone === 1 ? 'BALANCE POINT x2' : w.pitch > w.loop - 0.25 ? 'BRAKE!' : 'BALANCE';
     }

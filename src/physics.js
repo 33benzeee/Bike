@@ -58,7 +58,7 @@ export class BikePhysics {
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
     this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
-    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false;
+    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
     this.events.length = 0;
   }
@@ -84,9 +84,9 @@ export class BikePhysics {
     // ---- input smoothing
     const sr = Math.abs(inp.steer) > Math.abs(this.steer) ? 8 : 12;
     this.steer += (inp.steer - this.steer) * (1 - Math.exp(-dt * sr));
-    const tr = sp.drive.type === 'pedal' ? 6 : 12;
+    const tr = sp.drive.type === 'pedal' ? 6 : 7;
     this.throttle += clamp(inp.throttle - this.throttle, -dt * 25, dt * tr);
-    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 25, dt * 14);
+    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 3.2);
     this.comShift += clamp(inp.lean - this.comShift, -dt * 5.5, dt * 5.5);
 
     // a fresh tug on the bars / shove forward gives a short torque impulse
@@ -176,7 +176,7 @@ export class BikePhysics {
           // surplus fades as the bike approaches its rotation-rate limit
           let surplus = sp.wheelieGain * (1 - this.pitchVel / sp.wheelieRate);
           // past the balance point the rider is already rolling off
-          if (xc < 0) surplus *= 0.3;
+          if (xc < 0) surplus *= 0.12;
           // not pulled up on purpose: float a low power-wheelie instead of looping
           if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
           driveCap = Math.max(0, th * (Fhold + (surplus * Ie) / yc)); th = 1;
@@ -223,7 +223,10 @@ export class BikePhysics {
         surfGrip = g;
         const lim = sp.grip * g * Fn;
         const Fd = Math.min(this._drive(th, vt), driveCap);
-        const Fb = bR > 0 ? -Math.sign(vt) * Math.min(bR * sp.brake * 0.6 * m * G, (Math.abs(vt) * m * 0.5) / h) : 0;
+        // in a wheelie the rear brake is a fine tool: cap how hard it can snap the front down
+        let bMax = sp.brake * 0.48 * m * G;
+        if (!this.frontContact) { const xw = cx * ct - cy * st; bMax = Math.min(bMax, (9 * (I + m * xw * xw)) / (cx * st + cy * ct + r)); }
+        const Fb = bR > 0 ? -Math.sign(vt) * Math.min(bR * bMax, (Math.abs(vt) * m * 0.5) / h) : 0;
         const coast = th < 0.05 ? (sp.drive.type === 'pedal' ? 0 : 0.02 * m * G) : 0;
         const roll = -Math.tanh(vt * 4) * (SURF_ROLL[wc.surface] * Fn + coast);
         let Ft = Fd + Fb + roll;
@@ -259,7 +262,7 @@ export class BikePhysics {
         const lim = sp.grip * g * Fn;
         let Fb = 0;
         if (bF > 0) {
-          let maxB = bF * sp.brake * 0.95 * m * G;
+          let maxB = bF * sp.brake * 0.8 * m * G;
           const tip = (m * G * rsF) / (r - ryF); // front-brake force that just lifts the rear
           if (assist > 0) {
             if (!this.rearContact && this.pitch < -0.04) {
@@ -322,13 +325,17 @@ export class BikePhysics {
         // past the balance point the rider instinctively shifts forward, which
         // slows the fall backwards enough to catch it with the brake
         const xc = cx * ct - cy * st;
-        if (xc < 0) { tq += 0.6 * m * G * xc; if (this.pitchVel > 0) tq -= this.pitchVel * I * 1.6; }
+        if (xc < 0) { tq += 0.7 * m * G * xc; if (this.pitchVel > 0) tq -= this.pitchVel * I * 1.6; }
       }
       // tail on the tarmac: it props the bike up like a spring and drags
       this.scraping = rearC && !frontC && this.pitch > sp.loopAngle - 0.06;
+      if (!this.scraping) this.scrapeT = Math.max(0, this.scrapeT - 2 * h);
       if (this.scraping) {
         const d = this.pitch - (sp.loopAngle - 0.06);
-        tq -= I * (160 * d + 16 * Math.max(0, this.pitchVel));
+        // staying on the gas while the tail drags walks the bike over backwards
+        this.scrapeT = clamp(this.scrapeT + h * (this.throttle > 0.5 ? 1 : -1.5), 0, 4);
+        const tip = 0.3 * m * G * Math.max(0.05, cy * st - cx * ct); // what gravity is pushing back with
+        tq -= tip * (d / 0.05 - 1.7 * this.scrapeT) + I * 8 * Math.max(0, this.pitchVel);
         Fs -= m * 1.3 * (1 - 0.9 * this.throttle) * Math.tanh(u); // hold the throttle to keep a scrape going
       }
       // rider soaks up kicks from curbs and stairs instead of going over the bars
@@ -453,7 +460,7 @@ export class BikePhysics {
 
     // the tail can drag on the ground (12 o'clock); only going well past it, or
     // running out of speed while scraping, throws you off the back
-    if (rc && (this.pitch > sp.loopAngle + 0.3 || (this.scraping && Math.abs(this.speed) < 1.2))) { this._crash('loopout', Math.abs(this.speed)); return; }
+    if (rc && (this.pitch > sp.loopAngle + 0.12 || (this.scraping && Math.abs(this.speed) < 1.2))) { this._crash('loopout', Math.abs(this.speed)); return; }
     if (fc && !rc && this.pitch < -1.12) { this._crash('endo', Math.abs(this.speed)); return; }
     if (Math.abs(this.lat) > 7.5 && any) { this._crash('slide', Math.abs(this.lat)); return; }
     // rider's head hitting the ground (upside-down or flat landings)
