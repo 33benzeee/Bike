@@ -149,7 +149,7 @@ class Game {
 
   setBike(id, keepPos) {
     const old = this.phys, x = old.x, z = old.z, yaw = old.yaw;
-    if (this.model) { this.rider.setRagdoll(false, this.scene, this.model.group); this.scene.remove(this.model.group); this.model.group.remove(this.rider.group); this.model.dispose(); }
+    if (this.model) { this.rider.endRagdoll(this.model.group); this.scene.remove(this.model.group); this.model.group.remove(this.rider.group); this.model.dispose(); }
     const spec = this.specOf(id);
     this.model = buildBike(spec, this.paintOf(id));
     this.scene.add(this.model.group); this.model.group.add(this.rider.group);
@@ -247,6 +247,7 @@ class Game {
   applyCheat(raw) {
     const code = String(raw || '').trim().toUpperCase(), s = this.save;
     if (!code) return { ok: false, msg: 'Type a code first.' };
+    if (code === 'BBV33') { s.earn(25000); return { ok: true, msg: `Cha-ching. +${money(25000)} — you now have ${money(s.cash)}.` }; }
     if (code === 'NOCOPS') {
       this.noCops = !this.noCops;
       if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);
@@ -259,7 +260,7 @@ class Game {
 
   respawn(home, quiet) {
     const p = this.phys, h = this.city.spots.home;
-    this.rider.setRagdoll(false, this.scene, this.model.group);
+    this.rider.endRagdoll(this.model.group);
     const s = !home && this.safe.length ? this.safe[Math.max(0, this.safe.length - 3)] : null;
     if (s) p.reset(s.x, s.z, s.yaw); else p.reset(h.x, h.z, h.yaw);
     if (home) this.cops.reset(h.x, h.z);
@@ -422,11 +423,11 @@ class Game {
     const p = this.phys, model = this.model, g = model.group, sp = model.spec;
     const hx = Math.sin(p.yaw), hz = Math.cos(p.yaw);
     if (p.crashed) {
+      this.rider.beginRagdoll(this.scene, g, p, this.terrain);
       g.position.set(p.x - hx * sp.wheelbase * 0.4, p.y - 0.05, p.z - hz * sp.wheelbase * 0.4);
       g.rotation.set(-p.pitch, p.yaw, -p.lean, 'YXZ');
       g.updateMatrixWorld(true);
       poseBike(model, p, dt);
-      this.rider.setRagdoll(true, this.scene, g);
       this.rider.updateRagdoll(dt, p.rag);
       return;
     }

@@ -2,10 +2,12 @@
 // every frame so hands stay on the grips and feet on the pegs — until a trick
 // (or a crash) says otherwise.
 import * as THREE from 'three';
+import { circleVsObstacle } from './world/terrain.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const V = () => new THREE.Vector3();
-const _d = V(), _p = V(), _t = V();
+const _d = V(), _p = V(), _t = V(), _f = V();
+const _m = new THREE.Matrix4(), _hit = { nx: 0, nz: 0 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 const L_UPPER = 0.31, L_FORE = 0.3, L_THIGH = 0.45, L_SHIN = 0.47;
@@ -79,12 +81,106 @@ export class Rider {
     this.head.visible = !on;
   }
 
-  // parent: bike group while riding, the scene while tumbling
-  setRagdoll(on, scene, bikeGroup) {
-    if (on === this.ragdoll) return;
-    this.ragdoll = on;
-    (on ? scene : bikeGroup).add(this.group);
-    if (!on) { this.group.position.set(0, 0, 0); this.group.rotation.set(0, 0, 0); }
+  // ---- ragdoll: 13 point masses held together by distance constraints
+  // (verlet), colliding with the ground and walls. Started from the exact pose
+  // and motion the rider had at the moment of the crash.
+  beginRagdoll(scene, bikeGroup, phys, terrain) {
+    if (this.ragdoll) return;
+    this.ragdoll = true; this.terrain = terrain;
+    const P = [V(), V(), V(), V(), V(), V(), V(), V(), V(), V(), V(), V(), V()];
+    P[0].set(0, TORSO + 0.15, 0.02).applyMatrix4(this.torso.matrix);
+    for (let s = 0; s < 2; s++) {
+      P[1 + s].copy(this.arm[s].root); P[5 + s].copy(this.arm[s].mid); P[7 + s].copy(this.arm[s].end);
+      P[3 + s].copy(this.leg[s].root); P[9 + s].copy(this.leg[s].mid); P[11 + s].copy(this.leg[s].end);
+    }
+    for (const p of P) p.applyMatrix4(bikeGroup.matrixWorld);
+    // velocities: the crash throw plus the spin the bike had
+    const rg = phys.rag, hx = Math.sin(phys.yaw), hz = Math.cos(phys.yaw);
+    const cx = (P[3].x + P[4].x) / 2, cy = (P[3].y + P[4].y) / 2, cz = (P[3].z + P[4].z) / 2;
+    const w = clamp(phys.pitchVel + (phys.crashReason === 'endo' ? -5 : phys.crashReason === 'loopout' ? 2.5 : -2), -7, 7);
+    const dt = 1 / 120;
+    this.prev = P.map((p) => {
+      const rs = (p.x - cx) * hx + (p.z - cz) * hz, ry = p.y - cy;
+      const vs = -w * ry, vy = w * rs;
+      const j = () => (Math.random() - 0.5) * 1.5;
+      return V().set(p.x - (rg.vx + hx * vs + j()) * dt, p.y - (rg.vy + vy + j()) * dt, p.z - (rg.vz + hz * vs + j()) * dt);
+    });
+    this.pts = P;
+    const link = (a, b, min) => ({ a, b, d: P[a].distanceTo(P[b]), min: !!min });
+    this.links = [link(1, 2), link(3, 4), link(1, 3), link(2, 4), link(1, 4), link(2, 3), link(0, 1), link(0, 2), link(0, 3), link(0, 4)];
+    for (let s = 0; s < 2; s++) {
+      this.links.push({ a: 1 + s, b: 5 + s, d: L_UPPER }, { a: 5 + s, b: 7 + s, d: L_FORE }, { a: 3 + s, b: 9 + s, d: L_THIGH }, { a: 9 + s, b: 11 + s, d: L_SHIN });
+      // keep limbs from folding flat or passing through the body
+      this.links.push({ a: 1 + s, b: 7 + s, d: 0.22, min: true }, { a: 3 + s, b: 11 + s, d: 0.35, min: true }, { a: 0, b: 7 + s, d: 0.2, min: true }, { a: 9 + s, b: 2 - s, d: 0.3, min: true });
+    }
+    this.links.push({ a: 9, b: 10, d: 0.14, min: true }, { a: 11, b: 12, d: 0.14, min: true });
+    scene.add(this.group);
+    this.group.position.set(0, 0, 0); this.group.rotation.set(0, 0, 0);
+    this.head.visible = true;
+  }
+
+  endRagdoll(bikeGroup) {
+    if (!this.ragdoll) return;
+    this.ragdoll = false;
+    bikeGroup.add(this.group);
+    this.group.position.set(0, 0, 0); this.group.rotation.set(0, 0, 0);
+    this.head.visible = !this.firstPerson;
+  }
+
+  updateRagdoll(dt, rag) {
+    const P = this.pts, Q = this.prev, T = this.terrain;
+    const n = Math.max(1, Math.min(6, Math.round(dt * 120))), h = dt / n;
+    for (let it = 0; it < n; it++) {
+      for (let i = 0; i < P.length; i++) {
+        const p = P[i], q = Q[i];
+        const vx = (p.x - q.x) * 0.998, vy = (p.y - q.y) * 0.998 - 9.81 * h * h, vz = (p.z - q.z) * 0.998;
+        q.copy(p); p.x += vx; p.y += vy; p.z += vz;
+      }
+      for (let k = 0; k < 5; k++) {
+        for (let c = 0; c < this.links.length; c++) {
+          const l = this.links[c], a = P[l.a], b = P[l.b];
+          _d.subVectors(b, a);
+          const len = _d.length() || 1e-6;
+          if (l.min && len >= l.d) continue;
+          _d.multiplyScalar(((len - l.d) / len) * 0.5);
+          a.add(_d); b.sub(_d);
+        }
+      }
+      for (let i = 0; i < P.length; i++) {
+        const p = P[i], q = Q[i], r = i === 0 ? 0.14 : 0.09;
+        const g = T.height(p.x, p.z) + r;
+        if (p.y < g) {
+          // land, lose most of the bounce, scrub speed along the ground
+          const vy = p.y - q.y;
+          p.y = g; q.y = g + vy * 0.25;
+          q.x += (p.x - q.x) * 0.1; q.z += (p.z - q.z) * 0.1;
+        }
+        if (i < 5 || i > 10) T.query(p.x, p.z, 0.3, (o) => {
+          if (o.carOnly || o.y1 < p.y - 0.05) return;
+          const pen = circleVsObstacle(o, p.x, p.z, 0.12, _hit);
+          if (pen > 0) { p.x += _hit.nx * pen; p.z += _hit.nz * pen; }
+        });
+      }
+    }
+    // draw the body through the points
+    const hipM = _t.addVectors(P[3], P[4]).multiplyScalar(0.5);
+    const up = _p.addVectors(P[1], P[2]).multiplyScalar(0.5).sub(hipM).normalize();
+    const left = _d.subVectors(P[1], P[2]).normalize();
+    const fwd = _f.crossVectors(left, up).normalize();
+    left.crossVectors(up, fwd);
+    _m.makeBasis(left, up, fwd);
+    this.torso.quaternion.setFromRotationMatrix(_m);
+    this.torso.position.copy(hipM);
+    this.head.rotation.set(0.15, 0, 0);
+    for (let s = 0; s < 2; s++) {
+      const a = this.arm[s], l = this.leg[s];
+      seg(a.up, P[1 + s], P[5 + s]); seg(a.fore, P[5 + s], P[7 + s]);
+      a.hand.position.copy(P[7 + s]); a.hand.quaternion.copy(a.fore.quaternion);
+      seg(l.up, P[3 + s], P[9 + s]); seg(l.fore, P[9 + s], P[11 + s]);
+      l.foot.position.copy(P[11 + s]); l.foot.quaternion.copy(l.fore.quaternion);
+    }
+    // the camera and the cops track the body, not the scripted estimate
+    rag.x = hipM.x; rag.y = hipM.y; rag.z = hipM.z;
   }
 
   // tr: { one, no, stand, drag } booleans. ground: world Y under the rear wheel.
@@ -175,38 +271,6 @@ export class Rider {
       seg(l.up, l.root, l.mid); seg(l.fore, l.mid, l.end);
       l.foot.position.copy(l.end); l.foot.position.z += 0.06; l.foot.position.y -= 0.03;
       l.foot.rotation.set(superman * 1.2 + (s === 0 ? w.drag * (1 - w.air) * 0.4 : 0), 0, 0);
-    }
-  }
-
-  // Tumbling after a crash. rag = physics ragdoll state.
-  updateRagdoll(dt, rag) {
-    this.t += dt;
-    const g = this.group;
-    g.position.set(rag.x, rag.y, rag.z);
-    const resting = rag.rest > 0.15;
-    let rot = rag.rot;
-    if (resting) { rot = Math.round((rag.rot - Math.PI / 2) / Math.PI) * Math.PI + Math.PI / 2; rag.rot += (rot - rag.rot) * Math.min(1, dt * 8); rot = rag.rot; }
-    g.rotation.set(rot, rag.yaw, 0, 'YXZ');
-    const flail = resting ? 0 : 1, t = this.t;
-    this.torso.position.set(0, 0, 0);
-    this.torso.rotation.set(0.1 * flail * Math.sin(t * 6), 0, 0);
-    this.head.rotation.set(0.2, 0, 0);
-    this.torso.updateMatrix();
-    for (let s = 0; s < 2; s++) {
-      const a = this.arm[s], sx = s === 0 ? 1 : -1;
-      a.root.set(sx * SHOULDER_W, TORSO - 0.04, 0).applyMatrix4(this.torso.matrix);
-      a.target.copy(a.root); a.target.x += sx * 0.42; a.target.y += 0.12 + 0.3 * flail * Math.sin(t * 8 + s * 2); a.target.z += 0.12 + 0.25 * flail * Math.cos(t * 7 + s);
-      _p.set(sx, -0.3, -0.6);
-      ik(a.root, a.target, L_UPPER, L_FORE, _p, a.mid, a.end);
-      seg(a.up, a.root, a.mid); seg(a.fore, a.mid, a.end);
-      a.hand.position.copy(a.end); a.hand.quaternion.copy(a.fore.quaternion);
-      const l = this.leg[s];
-      l.root.set(sx * HIP_W, -0.02, 0);
-      l.target.set(sx * 0.2, -0.78, 0.15 + 0.3 * flail * Math.sin(t * 7 + s * 3));
-      _p.set(sx * 0.3, 0.2, 1);
-      ik(l.root, l.target, L_THIGH, L_SHIN, _p, l.mid, l.end);
-      seg(l.up, l.root, l.mid); seg(l.fore, l.mid, l.end);
-      l.foot.position.copy(l.end); l.foot.position.z += 0.06; l.foot.rotation.set(0, 0, 0);
     }
   }
 

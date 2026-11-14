@@ -58,7 +58,7 @@ export class BikePhysics {
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
     this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
-    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0;
+    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false;
     this.bikeRoll = 0; this.bikeYawVel = 0;
     this.events.length = 0;
   }
@@ -324,6 +324,13 @@ export class BikePhysics {
         const xc = cx * ct - cy * st;
         if (xc < 0) { tq += 0.6 * m * G * xc; if (this.pitchVel > 0) tq -= this.pitchVel * I * 1.6; }
       }
+      // tail on the tarmac: it props the bike up like a spring and drags
+      this.scraping = rearC && !frontC && this.pitch > sp.loopAngle - 0.06;
+      if (this.scraping) {
+        const d = this.pitch - (sp.loopAngle - 0.06);
+        tq -= I * (160 * d + 16 * Math.max(0, this.pitchVel));
+        Fs -= m * 1.3 * (1 - 0.9 * this.throttle) * Math.tanh(u); // hold the throttle to keep a scrape going
+      }
       // rider soaks up kicks from curbs and stairs instead of going over the bars
       if (assist > 0 && frontC && !rearC && this.brakeIn < 0.2 && this.pitch < -0.06) tq += I * clamp(-10 * this.pitch - 4.5 * this.pitchVel, -20, 34);
       if (inp.wobble > 0 && rearC && !frontC) tq += (Math.random() - 0.5) * I * 5 * inp.wobble;
@@ -444,7 +451,9 @@ export class BikePhysics {
     }
     this.wheelieT = rc && !fc && this.pitch > 0.17 ? this.wheelieT + dt : 0;
 
-    if (rc && this.pitch > sp.loopAngle) { this._crash('loopout', Math.abs(this.speed)); return; }
+    // the tail can drag on the ground (12 o'clock); only going well past it, or
+    // running out of speed while scraping, throws you off the back
+    if (rc && (this.pitch > sp.loopAngle + 0.3 || (this.scraping && Math.abs(this.speed) < 1.2))) { this._crash('loopout', Math.abs(this.speed)); return; }
     if (fc && !rc && this.pitch < -1.12) { this._crash('endo', Math.abs(this.speed)); return; }
     if (Math.abs(this.lat) > 7.5 && any) { this._crash('slide', Math.abs(this.lat)); return; }
     // rider's head hitting the ground (upside-down or flat landings)
