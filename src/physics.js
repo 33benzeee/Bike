@@ -201,6 +201,28 @@ export class BikePhysics {
         if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
         else driveCap = slope + lift * 1.5;
       }
+    } else if (this.committed && th > 0 && this.rearContact) {
+      // Sim, wheelie pulled on purpose: twice as lively as Normal and no help past
+      // the balance point, but the motor can't flip the bike faster than a rider
+      // could ever react.
+      const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
+      if (!this.frontContact) {
+        const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
+        driveCap = Math.max(0, th * (Fhold + (2 * sp.wheelieGain * (1 - this.pitchVel / (2 * sp.wheelieRate)) * Ie) / yc));
+      } else driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * 2;
+    } else if (!this.committed && th > 0) {
+      // Sim: raw once you pull the bike up yourself. Until then the rider's weight
+      // is forward, so full throttle pops the front but never carries it to the
+      // balance point.
+      const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
+      if (this.rearContact && !this.frontContact) {
+        const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
+        const soft = 0.12 + (sp.unruly || 0) * 1.2;
+        const a = clamp(10 * (soft - this.pitch) - 4 * this.pitchVel, -2 * sp.wheelieGain, 2 * sp.wheelieGain);
+        driveCap = Math.max(0, Fhold + (a * Ie) / yc);
+      } else if (this.frontContact) {
+        driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * (1.1 + (sp.unruly || 0));
+      }
     }
     this.effThrottle = th;
 
