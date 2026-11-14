@@ -214,7 +214,7 @@ class Game {
     this._updateControlsMode();
     if (!this.hinted) {
       this.hinted = true;
-      this.hud.hint(this.touchOn ? 'Hold <b>GAS</b> and pull the stick <b>down</b> to wheelie · <b>BRAKE</b> brings it back down'
+      this.hud.hint(this.touchOn ? 'Hold <b>GAS</b> and press <b>WHEELIE</b> to lift the front · <b>BRAKE</b> brings it back down'
         : 'Hold <kbd>W</kbd> and tap <kbd>Shift</kbd> to wheelie · <kbd>S</kbd> brings it down · <kbd>1</kbd>–<kbd>4</kbd> tricks · <kbd>C</kbd> camera', 9);
     }
   }

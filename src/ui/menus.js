@@ -178,6 +178,7 @@ export class Menus {
       <span class="k"><b>Left stick</b></span><span>Slide left / right to steer. Pull <b>down</b> to lean back (wheelie), push <b>up</b> to lean forward.</span>
       <span class="k"><b>GAS</b></span><span>Throttle — slide your thumb up the pedal for more.</span>
       <span class="k"><b>BRAKE</b></span><span>Brake. In a wheelie it's the rear brake that saves you from looping out.</span>
+      <span class="k"><b>WHEELIE</b></span><span>Pulls the front wheel up. Hold GAS, press it, then balance with GAS and BRAKE. (Pulling the stick down does the same.)</span>
       <span class="k"><b>HOP</b></span><span>Hold to crouch, release to bunny hop.</span>
       <span class="k"><b>Trick buttons</b></span><span>Hold during a wheelie or in the air.</span>
       <span class="k"><b>BURNOUT</b></span><span>Switch burnout mode on or off. With it on, hold GAS to smoke the rear tyre and steer to spin (motor bikes only).</span>

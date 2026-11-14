@@ -84,7 +84,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #touch { position: absolute; inset: 0; font-family: var(--font); }
 #stickzone { position: absolute; left: 0; bottom: 0; width: 46%; height: 72%; pointer-events: auto; touch-action: none; }
 #stick { position: absolute; left: calc(26px * var(--u) + var(--sal)); bottom: calc(26px * var(--u) + var(--sab)); width: calc(132px * var(--u)); height: calc(132px * var(--u)); border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.45); background: radial-gradient(circle, rgba(255, 255, 255, 0.07), rgba(13, 15, 20, 0.4)); }
-#stick::before { content: 'PULL DOWN = WHEELIE'; position: absolute; left: 50%; top: calc(-15px * var(--u)); transform: translateX(-50%); font-size: calc(9px * var(--u)); white-space: nowrap; opacity: 0.6; letter-spacing: 0.08em; }
+#stick::before { content: 'STEER'; position: absolute; left: 50%; top: calc(-15px * var(--u)); transform: translateX(-50%); font-size: calc(9px * var(--u)); white-space: nowrap; opacity: 0.6; letter-spacing: 0.08em; }
 #stick .knob { position: absolute; left: 50%; top: 50%; width: calc(58px * var(--u)); height: calc(58px * var(--u)); margin: calc(-29px * var(--u)); border-radius: 50%; background: rgba(255, 255, 255, 0.85); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); }
 #touch button { position: absolute; pointer-events: auto; touch-action: none; color: #fff; background: rgba(13, 15, 20, 0.55); border: 2px solid rgba(255, 255, 255, 0.5); font-size: calc(15px * var(--u)); letter-spacing: 0.05em; }
 #touch button.on { background: var(--yel); color: #000; border-color: var(--yel); }
@@ -209,3 +209,11 @@ kbd { display: inline-block; background: #fff; color: #000; border-radius: 4px; 
 #t-burn { left: calc(50% + 40px * var(--u)); top: calc(10px + var(--sat)); width: calc(84px * var(--u)); height: calc(30px * var(--u)); font-size: calc(11px * var(--u)) !important; border-radius: 6px; opacity: 0.8; }
 #t-reset { transform: translateX(calc(-100% - 4px)) !important; }
 #burn { border-color: var(--yel); }
+
+/* wheelie button: sits above HOP, the trick row moves up to make room */
+#t-wheelie { right: calc(122px * var(--u) + var(--sar)); bottom: calc(196px * var(--u) + var(--sab)); width: calc(82px * var(--u)); height: calc(58px * var(--u)); border-radius: calc(12px * var(--u)); border-color: var(--yel) !important; font-size: calc(13px * var(--u)) !important; }
+#tricks { bottom: calc(264px * var(--u) + var(--sab)); }
+@media (max-height: 400px) {
+  #tricks { bottom: calc(22px * var(--u) + var(--sab)); }
+  #t-wheelie { bottom: calc(190px * var(--u) + var(--sab)); height: calc(52px * var(--u)); }
+}

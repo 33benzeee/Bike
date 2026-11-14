@@ -77,6 +77,7 @@ export class Input {
     if (t.active) {
       throttle = Math.max(throttle, t.throttle); brake = Math.max(brake, t.brake);
       if (t.steer) steer = t.steer; if (t.lean) lean = t.lean;
+      if (t.pull) lean = 1; // the WHEELIE button is a pull on the bars
       hop = hop || t.hop;
       for (let i = 0; i < 4; i++) tr[i] = tr[i] || t.tricks[i];
     }
