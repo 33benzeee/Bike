@@ -197,6 +197,19 @@ export class BikePhysics {
         if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
         else driveCap = slope + lift * 1.5;
       }
+    } else if (!this.committed && th > 0) {
+      // Sim: no throttle shaping once you pull the bike up yourself. But a rider
+      // who isn't pulling keeps their weight forward, so full throttle only pops
+      // the front a little instead of flipping the bike.
+      const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
+      if (this.rearContact && !this.frontContact) {
+        const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
+        const soft = 0.1 + (sp.unruly || 0) * 0.8;
+        const a = clamp(10 * (soft - this.pitch) - 4 * this.pitchVel, -2 * sp.wheelieGain, 2 * sp.wheelieGain);
+        driveCap = Math.max(0, Fhold + (a * Ie) / yc);
+      } else if (this.frontContact) {
+        driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * (1.1 + (sp.unruly || 0));
+      }
     }
     this.effThrottle = th;
 
