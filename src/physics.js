@@ -294,18 +294,20 @@ export class BikePhysics {
         if (bF > 0) {
           let maxB = bF * sp.brake * 0.9 * m * G;
           const tip = (m * G * rsF) / (r - ryF); // front-brake force that just lifts the rear
-          if (assist > 0) {
+          if (inp.stoppie) {
+            // stoppie button: grab enough front brake to lift the tail, then hold it
+            // near a comfortable angle
             if (!this.rearContact && this.pitch < -0.04) {
-              // rolling stoppie: hold the tail up near a comfortable angle
               const Ie = I + m * rsF * rsF;
               const a = clamp(-12 * (this.pitch + 0.55) - 5 * this.pitchVel, -4, 7);
               maxB = Math.min(maxB, Math.max(0, tip - (a * Ie) / (r - ryF)) * bF);
-            } else {
-              // Sitting neutral the rider won't grab enough front brake to go over
-              // the bars. Lean forward and the cap comes off: that's how you stoppie.
-              const fwd = clamp(-this.comShift * 1.4, 0, 1);
-              maxB = Math.min(maxB, tip * (0.8 + 0.55 * fwd));
-            }
+            } else maxB = Math.min(maxB, tip * 1.4);
+          } else {
+            // ordinary braking never goes over the bars: stay under the tipping
+            // point, and let go if the rear wheel comes up anyway
+            let cap = tip * 0.78;
+            if (!this.rearContact) cap = tip * clamp(0.45 + this.pitchVel * 0.6, 0.08, 0.45);
+            maxB = Math.min(maxB, cap);
           }
           Fb = -Math.sign(vt) * Math.min(maxB, (Math.abs(vt) * m * 0.5) / h);
         }
@@ -369,7 +371,7 @@ export class BikePhysics {
         Fs -= m * 1.3 * (1 - 0.9 * this.throttle) * Math.tanh(u); // hold the throttle to keep a scrape going
       }
       // rider soaks up kicks from curbs and stairs instead of going over the bars
-      if (assist > 0 && frontC && !rearC && this.brakeIn < 0.2 && this.pitch < -0.06) tq += I * clamp(-10 * this.pitch - 4.5 * this.pitchVel, -20, 34);
+      if (frontC && !rearC && !inp.stoppie && this.pitch < -0.06) tq += I * clamp(-10 * this.pitch - 4.5 * this.pitchVel, -20, 34);
       if (inp.wobble > 0 && rearC && !frontC) tq += (Math.random() - 0.5) * I * 5 * inp.wobble;
     }
 

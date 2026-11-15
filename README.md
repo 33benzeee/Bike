@@ -39,6 +39,7 @@ they go away. Everything can be overridden in **Settings**.
 | Steer | `A` `D` / `←` `→` | Left stick | Left stick |
 | Lean back (pull up) | `Shift` / `Q` | Stick down | Stick back |
 | Lean forward | `E` | Stick up | Stick forward |
+| Stoppie (hold) — normal braking never tips you over | `X` | STOPPIE | Right stick click |
 | Bunny hop (hold, release) | `Space` | HOP | A |
 | One-hander / no-hander / seat stander / foot drag | `1` `2` `3` `4` (or `J` `K` `L` `;`) | Trick buttons | X / Y / B / LB |
 | Burnout mode on/off (motor bikes): then hold throttle, steer to spin | `B` | BURNOUT | — |

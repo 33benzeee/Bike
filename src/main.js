@@ -342,6 +342,8 @@ class Game {
     const w = this.rider.w;
     inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist;
     inp.burnout = !!this.burnout;
+    // the stoppie button is the only thing that lifts the rear wheel on the brakes
+    inp.stoppie = s.stoppie; if (s.stoppie) { inp.brake = 1; inp.lean = -1; inp.throttle = 0; }
     inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
 

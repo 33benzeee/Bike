@@ -222,3 +222,7 @@ kbd { display: inline-block; background: #fff; color: #000; border-radius: 4px; 
 #t-mount { left: 50%; bottom: calc(96px * var(--u) + var(--sab)); transform: translateX(-50%); width: calc(150px * var(--u)); height: calc(54px * var(--u)); border-radius: calc(12px * var(--u)); background: var(--yel) !important; color: #000 !important; border-color: var(--yel) !important; font-size: calc(18px * var(--u)) !important; }
 body.onfoot #t-hop, body.onfoot #t-wheelie, body.onfoot #tricks, body.onfoot #t-burn { display: none; }
 body.onfoot #t-reset { width: calc(96px * var(--u)); }
+
+/* stoppie button: above the stick, out of the way of normal braking */
+#t-stoppie { left: calc(26px * var(--u) + var(--sal)); bottom: calc(184px * var(--u) + var(--sab)); width: calc(100px * var(--u)); height: calc(46px * var(--u)); border-radius: calc(12px * var(--u)); border-color: var(--red) !important; font-size: calc(13px * var(--u)) !important; }
+body.onfoot #t-stoppie { display: none; }
