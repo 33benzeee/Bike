@@ -1,5 +1,5 @@
 // In-game HUD: cash, heat, speed, balance meter, combo, minimap, banners.
-import { EDGE, WALK } from '../world/city.js';
+import { EDGE, WALK, N, PITCH, roadC } from '../world/city.js';
 
 const $ = (id) => document.getElementById(id);
 const MAP_COL = { L: '#6f6a62', M: '#77736c', T: '#5d6876', K: '#4f8a44', D: '#9a7448', S: '#a9a59b', P: '#55585f', C: '#8a6a3c', V: '#b9b4a6', H: '#d9b21c' };
@@ -31,7 +31,7 @@ export class Hud {
       c.fillStyle = MAP_COL[b.type] || '#777';
       c.fillRect((b.x0 + world / 2) * k, (b.z0 + world / 2) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k);
     }
-    this.mapImg = cv; this.mapK = k; this.mapWorld = world; this.home = city.spots.home;
+    this.mapImg = cv; this.mapK = k; this.mapWorld = world; this.spots = city.spots;
   }
 
   show(on) { this.el.classList.toggle('hidden', !on); if (!on) this.flash.classList.remove('on'); }
@@ -121,7 +121,52 @@ export class Hud {
     this._blink += dt;
   }
 
-  minimap(px, pz, yaw, cops, wanted) {
+  // road-following route from the rider to a waypoint: out to the nearest junction,
+  // along the grid, then in to the point
+  _route(px, pz, w) {
+    const node = (v) => Math.max(0, Math.min(N, Math.round(v / PITCH + N / 2)));
+    const pi = node(px), pj = node(pz), wi = node(w.x), wj = node(w.z);
+    return [[px, pz], [roadC(pi), roadC(pj)], [roadC(wi), roadC(pj)], [roadC(wi), roadC(wj)], [w.x, w.z]];
+  }
+
+  _mapItems(c, T, px, pz, yaw, cops, wanted, wps, clampR) {
+    // T(x, z) -> [sx, sy]; clampR = radius to pin off-map icons to (0 = none)
+    const S = c.canvas.width, k = clampR ? 1 : Math.max(1, S / 700);
+    const place = (x, z, pin) => {
+      let [sx, sy] = T(x, z);
+      if (clampR) { const dx = sx - S / 2, dy = sy - S / 2, d = Math.hypot(dx, dy); if (d > clampR) { if (!pin) return null; sx = S / 2 + (dx * clampR) / d; sy = S / 2 + (dy * clampR) / d; } }
+      return [sx, sy];
+    };
+    const dot = (x, z, r, col, pin) => { const p = place(x, z, pin); if (!p) return; c.fillStyle = col; c.beginPath(); c.arc(p[0], p[1], r * k, 0, 6.2832); c.fill(); };
+    const badge = (x, z, col, letter) => {
+      const p = place(x, z, true); if (!p) return;
+      c.fillStyle = '#000'; c.beginPath(); c.arc(p[0], p[1], 12 * k, 0, 6.2832); c.fill();
+      c.fillStyle = col; c.beginPath(); c.arc(p[0], p[1], 10 * k, 0, 6.2832); c.fill();
+      c.fillStyle = '#000'; c.font = `900 ${13 * k}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(letter, p[0], p[1] + 1);
+    };
+    // routes first, under everything
+    if (wps.length) {
+      c.strokeStyle = '#ff4fd8'; c.lineWidth = 5 * k; c.lineJoin = 'round'; c.lineCap = 'round'; c.setLineDash([]);
+      const pts = this._route(px, pz, wps[0]).map(([x, z]) => T(x, z));
+      c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke();
+    }
+    if (this.spots.dealer) badge(this.spots.dealer.x, this.spots.dealer.z, '#ffd21f', '$');
+    if (this.spots.customs) badge(this.spots.customs.x, this.spots.customs.z, '#34d17a', 'C');
+    wps.forEach((w, i) => badge(w.x, w.z, '#ff4fd8', String(i + 1)));
+    const blink = Math.floor(this._blink * 5) % 2 === 0;
+    for (const u of cops) {
+      const hot = u.chasing || u.state === 'block';
+      if (u.heli) { dot(u.x, u.z, 10, blink ? '#fff' : '#ff3b30', wanted); continue; }
+      dot(u.x, u.z, hot ? 8 : 6, hot ? (blink ? '#ff3b30' : '#2f7bff') : '#9fb6ff', hot && wanted);
+    }
+    const p = T(px, pz);
+    c.save(); c.translate(p[0], p[1]); c.rotate(Math.PI - yaw); c.scale(k, k);
+    c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(0, -15); c.lineTo(10, 11); c.lineTo(0, 5); c.lineTo(-10, 11); c.closePath(); c.stroke(); c.fill();
+    c.restore();
+  }
+
+  minimap(px, pz, yaw, cops, wanted, wps = []) {
     const c = this.mctx, S = this.map.width, R = 150; // metres shown from centre to edge
     const k = this.mapK, half = this.mapWorld / 2;
     c.save();
@@ -130,23 +175,27 @@ export class Hud {
     c.fillStyle = '#244d63'; c.fillRect(0, 0, S, S);
     const sc = S / (2 * R);
     c.drawImage(this.mapImg, (px - R + half) * k, (pz - R + half) * k, 2 * R * k, 2 * R * k, 0, 0, S, S);
-    const dot = (x, z, r, col, clampEdge) => {
-      let dx = (x - px) * sc, dz = (z - pz) * sc;
-      const d = Math.hypot(dx, dz), lim = S / 2 - 9;
-      if (d > lim) { if (!clampEdge) return; dx *= lim / d; dz *= lim / d; }
-      c.fillStyle = col; c.beginPath(); c.arc(S / 2 + dx, S / 2 + dz, r, 0, 6.2832); c.fill();
-    };
-    if (this.home) { dot(this.home.shopX, this.home.shopZ, 9, '#000', true); dot(this.home.shopX, this.home.shopZ, 6.5, '#ffd21f', true); }
-    const blink = Math.floor(this._blink * 5) % 2 === 0;
-    for (const u of cops) {
-      const hot = u.chasing || u.state === 'block';
-      if (u.heli) { dot(u.x, u.z, 10, blink ? '#fff' : '#ff3b30', wanted); continue; }
-      dot(u.x, u.z, hot ? 8 : 6, hot ? (blink ? '#ff3b30' : '#2f7bff') : '#9fb6ff', hot && wanted);
-    }
-    // player arrow
-    c.translate(S / 2, S / 2); c.rotate(Math.PI - yaw);
-    c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(0, -15); c.lineTo(10, 11); c.lineTo(0, 5); c.lineTo(-10, 11); c.closePath(); c.stroke(); c.fill();
+    this._mapItems(c, (x, z) => [S / 2 + (x - px) * sc, S / 2 + (z - pz) * sc], px, pz, yaw, cops, wanted, wps, S / 2 - 12);
     c.restore();
+  }
+
+  // Full-screen map. Returns nothing; use bigMapToWorld() to turn a tap into a position.
+  bigMap(canvas, px, pz, yaw, cops, wanted, wps) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = Math.round(canvas.clientWidth * dpr), H = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    const c = canvas.getContext('2d'), size = Math.min(W, H) * 0.96, half = this.mapWorld / 2, sc = size / this.mapWorld;
+    const ox = (W - size) / 2, oy = (H - size) / 2;
+    this._big = { ox, oy, sc, half, dpr };
+    c.fillStyle = '#12303f'; c.fillRect(0, 0, W, H);
+    c.drawImage(this.mapImg, ox, oy, size, size);
+    const T = (x, z) => [ox + (x + half) * sc, oy + (z + half) * sc];
+    // _mapItems scales icons from the canvas width
+    this._mapItems(c, T, px, pz, yaw, cops, wanted, wps, 0);
+  }
+
+  bigMapToWorld(cx, cy) {
+    const b = this._big; if (!b) return null;
+    const x = (cx * b.dpr - b.ox) / b.sc - b.half, z = (cy * b.dpr - b.oy) / b.sc - b.half;
+    return Math.abs(x) > b.half || Math.abs(z) > b.half ? null : { x, z };
   }
 }

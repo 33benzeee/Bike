@@ -116,7 +116,7 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     walls: new Batch(), props: new Batch(), flat: new Batch(),
   };
   const trees = [], lamps = [], parked = [], blocks = [];
-  const spots = { ramps: [], home: null };
+  const spots = { ramps: [], home: null, dealer: null, customs: null };
 
   terrain.bounds = EDGE + WALK;
 
@@ -568,19 +568,70 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     kicker(cx + 22, cz - 20, -1, 0, 3, 0.9, 1.3, C);
   }
 
+  // Home block: the dealership (buy bikes) and the customs garage (mods + looks),
+  // with the practice yard in front. Both are entered by riding into their marker.
   function home(x0, z0, x1, z1) {
     const ix0 = x0 + WALK, iz0 = z0 + WALK, ix1 = x1 - WALK, iz1 = z1 - WALK;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     surfacePatch(ix0, iz0, ix1, iz1, 'asphalt');
-    building(cx - 14, iz0 + 2, cx + 14, iz0 + 18, 7.5, 0xe8e0cf, { awning: ['s'], band: 0x20242a, roof: 0x3d4046 });
-    // shop sign
-    const sign = canvasTexture(512, (ctx, s) => {
-      ctx.fillStyle = '#15171c'; ctx.fillRect(0, 0, s, s);
-      ctx.fillStyle = '#ffd21f'; ctx.font = 'bold 120px Impact, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('WHEELIE', s / 2, s * 0.3); ctx.fillStyle = '#fff'; ctx.fillText('WORKS', s / 2, s * 0.7);
-    }, { repeat: false });
-    const sm = new THREE.Mesh(new THREE.PlaneGeometry(12, 4.2), new THREE.MeshBasicMaterial({ map: sign }));
-    sm.position.set(cx, CURB + 5.3, iz0 + 18.25); group.add(sm);
+    const sign = (lines, w, h, x, y, z, bg = '#15171c') => {
+      const t = canvasTexture(512, (ctx, s) => {
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, s, s);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        lines.forEach(([text, col, size], k) => { ctx.fillStyle = col; ctx.font = `italic 900 ${size}px system-ui, Arial, sans-serif`; ctx.fillText(text, s / 2, (s * (k + 0.5)) / lines.length + 6); });
+      }, { repeat: false });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+      m.position.set(x, y, z); group.add(m);
+    };
+    // floor marker you ride into to open a shop
+    const marker = (x, z, col) => {
+      const g = new THREE.Group(); g.position.set(x, CURB + 0.03, z);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.9, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false }));
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 3.2, 28, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      beam.position.y = 1.6; g.add(ring, beam); group.add(g);
+      return g;
+    };
+
+    // ---- dealership: glass-fronted showroom
+    const dx0 = cx - 30, dx1 = cx - 3, dz0 = iz0 + 2, dz1 = iz0 + 16, dmx = (dx0 + dx1) / 2;
+    building(dx0, dz0, dx1, dz1, 7, 0x9fb9cc, { band: 0x1d2a36, roof: 0x30343a, awning: ['s'] });
+    sign([['DEALERSHIP', '#ffd21f', 96], ['NEW BIKES', '#ffffff', 60]], 14, 4.4, dmx, CURB + 5.2, dz1 + 0.26);
+    // display podium beside the entrance
+    const pod = { x: dx0 + 5, z: dz1 + 5.5 };
+    B.props.color(0xdadde2).geom(new THREE.CylinderGeometry(2.3, 2.5, 0.22, 24), mat(pod.x, CURB + 0.11, pod.z));
+    B.props.color(0xffd21f).geom(new THREE.CylinderGeometry(2.36, 2.36, 0.06, 24), mat(pod.x, CURB + 0.2, pod.z));
+    terrain.addCircle(pod.x, pod.z, 2.4, 0, CURB + 0.6);
+    spots.dealer = { x: dmx + 3, z: dz1 + 5, r: 2.9, view: { x: pod.x, y: CURB + 0.23, z: pod.z }, marker: marker(dmx + 3, dz1 + 5, 0xffd21f) };
+
+    // ---- customs: a big garage you ride straight into; the door rolls up as you arrive
+    const gx0 = cx + 3, gx1 = cx + 31, gz0 = iz0 + 1, gz1 = iz0 + 21, gmx = (gx0 + gx1) / 2, gH = 9, T = 0.6, doorW = 12, doorH = 5.6;
+    const wall = (ax, az, bx, bz, y0 = 0, h = gH, col = 0x3a3f47) => {
+      B.props.color(col).box((ax + bx) / 2, CURB + y0, (az + bz) / 2, Math.abs(bx - ax), h, Math.abs(bz - az));
+      if (y0 < 2) terrain.addBox((ax + bx) / 2, (az + bz) / 2, Math.abs(bx - ax) / 2, Math.abs(bz - az) / 2, 0, 0, CURB + y0 + h);
+    };
+    wall(gx0, gz0, gx1, gz0 + T);                                   // back
+    wall(gx0, gz0, gx0 + T, gz1); wall(gx1 - T, gz0, gx1, gz1);     // sides
+    wall(gx0, gz1 - T, gmx - doorW / 2, gz1); wall(gmx + doorW / 2, gz1 - T, gx1, gz1);   // front, either side of the door
+    wall(gmx - doorW / 2, gz1 - T, gmx + doorW / 2, gz1, doorH, gH - doorH);              // above the door
+    B.props.color(0xffd21f).box(gmx, CURB + doorH - 0.02, gz1 + 0.02, doorW + 1.2, 0.35, 0.1); // door header stripe
+    B.flat.color(0x2b2f35).box(gmx, CURB + gH, (gz0 + gz1) / 2, gx1 - gx0 + 0.6, 0.4, gz1 - gz0 + 0.6, { bottom: true });
+    // inside: painted floor, light strips, tool chests and a workbench along the walls
+    B.walk.color(0x8f949c).flat(gx0 + T, gz0 + T, gx1 - T, gz1 - T, CURB + 0.012, 3);
+    B.marks.color(0xffd21f).flat(gmx - 4.2, gz0 + 5.6, gmx + 4.2, gz0 + 5.8, CURB + 0.03).flat(gmx - 4.2, gz0 + 14.2, gmx + 4.2, gz0 + 14.4, CURB + 0.03)
+      .flat(gmx - 4.2, gz0 + 5.6, gmx - 4, gz0 + 14.4, CURB + 0.03).flat(gmx + 4, gz0 + 5.6, gmx + 4.2, gz0 + 14.4, CURB + 0.03);
+    const strip = new THREE.MeshBasicMaterial({ color: 0xfff4d6 });
+    for (const lx of [-8, 0, 8]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 13), strip); l.position.set(gmx + lx, CURB + gH - 0.25, (gz0 + gz1) / 2); group.add(l); }
+    for (const [tx, col] of [[-11, 0xc0392b], [-8.2, 0xc0392b], [8.2, 0x2f6fb8], [11, 0x2f6fb8]]) crate(gmx + tx, gz0 + T + 0.7, 2.4, 1.3, 1, col, 0, CURB, 0x22252a);
+    crate(gx0 + T + 0.8, gz0 + 9, 1.2, 1, 5, 0x7a5a3a, 0, CURB, 0x9a7a52); crate(gx1 - T - 0.8, gz0 + 9, 1.2, 1, 5, 0x7a5a3a, 0, CURB, 0x9a7a52);
+    sign([['CUSTOMS', '#ffd21f', 150]], 12, 2.6, gmx, CURB + doorH + 1.75, gz1 + 0.06);
+    sign([['MODS', '#ffffff', 110], ['PAINT · WRAPS', '#ffd21f', 64]], 9, 4, gmx, CURB + 5.4, gz0 + T + 0.06, '#22262c');
+    const door = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.18), new THREE.MeshLambertMaterial({ map: canvasTexture(128, (ctx, s) => { ctx.fillStyle = '#b9bec6'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#8b9099'; for (let y = 0; y < s; y += 16) ctx.fillRect(0, y, s, 3); }) }));
+    door.material.map.repeat.set(1, 3);
+    door.position.set(gmx, CURB + doorH / 2, gz1 - T / 2); door.castShadow = true; group.add(door);
+    terrain.sightBoxes.push({ x0: gx0, z0: gz0, x1: gx1, z1: gz1 });
+    terrain.cover.push({ x0: gx0, z0: gz0, x1: gx1, z1: gz1 });
+    spots.customs = { x: gmx, z: gz0 + 10, r: 3.4, view: { x: gmx, y: CURB, z: gz0 + 10 }, door, doorY: CURB + doorH / 2, doorH, doorX: gmx, doorZ: gz1, marker: marker(gmx, gz0 + 10, 0x34d17a) };
+
     ramp(cx, z1, 0, 1, 5, [[0, CURB], [1.2, 0]], { color: 0x55575b, side: 0x44464a, surface: SURF.asphalt, batch: B.walk });
     ramp(x0, cz + 10, -1, 0, 5, [[0, CURB], [1.2, 0]], { color: 0x55575b, side: 0x44464a, surface: SURF.asphalt, batch: B.walk });
     // practice yard
@@ -591,10 +642,8 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     platform(cx + 6.8, cz + 22, cx + 12.8, cz + 26, 0.8, 0xb5b1a7);
     ramp(cx + 3.6, cz + 24, 1, 0, 2, [[0, 0], [3.2, 0.8]], { base: CURB, color: 0xc9c5ba, side: 0x9d998f, surface: SURF.concrete });
     for (let k = 0; k < 6; k++) cone(cx - 20 + k * 3.2, cz + 26 + (k % 2) * 1.6, CURB);
-    // charging posts
-    for (const px of [-24, -21, 21, 24]) { B.props.color(0x2fb86a).box(cx + px, CURB, iz0 + 20, 0.35, 1.3, 0.35, { top: 0xffffff }); terrain.addCircle(cx + px, iz0 + 20, 0.25, 0, 1.5); }
     tree(ix0 + 3, iz1 - 3); tree(ix1 - 3, iz1 - 3);
-    spots.home = { x: cx, z: z1 + 5.5, yaw: Math.PI / 2, shopX: cx, shopZ: iz0 + 20 };
+    spots.home = { x: cx, z: z1 + 5.5, yaw: Math.PI / 2 };
   }
 
   const kinds = { L: lowrise, M: midrise, K: park, D: dirtPark, S: skatePlaza, P: parking, C: construction, V: civic, H: home };

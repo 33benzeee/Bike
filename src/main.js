@@ -81,6 +81,12 @@ class Game {
     this.fps = { t: 0, n: 0, low: 0 }; this.frameN = 0; this.hinted = false; this.respawnGrace = 0;
     this._v = new THREE.Vector3();
 
+    this.waypoints = []; this.shop = null; this.shopLock = null;
+    this.beacons = [];
+    for (let i = 0; i < 6; i++) {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 90, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4fd8, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      b.geometry.translate(0, 45, 0); b.visible = false; this.scene.add(b); this.beacons.push(b);
+    }
     this._wire();
     this.setBike(this.save.data.bike, false);
     this._updateControlsMode();
@@ -126,6 +132,10 @@ class Game {
     document.getElementById('btn-cam').addEventListener('click', (e) => { this.input.press('camera'); e.currentTarget.blur(); });
     document.getElementById('btn-pause').addEventListener('click', (e) => { this.input.press('pause'); e.currentTarget.blur(); });
     this.renderer.domElement.addEventListener('pointerdown', () => this.audio.start());
+    document.getElementById('minimap').addEventListener('click', () => this.input.press('map'));
+    document.getElementById('map-close').addEventListener('click', () => this.closeMap());
+    document.getElementById('map-clear').addEventListener('click', () => this.clearWaypoints());
+    document.getElementById('bigmap').addEventListener('click', (e) => { const r = e.currentTarget.getBoundingClientRect(); this.mapTap(e.clientX - r.left, e.clientY - r.top); });
     document.getElementById('rotate-skip').addEventListener('click', () => { document.body.classList.add('portrait-ok'); this.resize(); });
   }
 
@@ -269,8 +279,8 @@ class Game {
   previewBike(id) {
     if (this.preview) { this.scene.remove(this.preview.group); this.preview.dispose(); }
     this.preview = buildBike(this.specOf(id), this.lookFor(id)); this.previewId = id;
-    const h = this.city.spots.home, g = this.preview.group;
-    g.position.set(h.shopX, CURB + this.preview.spec.rR, h.shopZ + 7);
+    const v = this.city.spots[this.shop || 'dealer'].view, g = this.preview.group;
+    g.position.set(v.x, v.y + this.preview.spec.rR, v.z);
     g.rotation.set(0, 0.6, -0.12, 'YXZ');
     this.scene.add(g);
   }
@@ -291,15 +301,59 @@ class Game {
   resume() { this.state = 'play'; this.menus.hide(); this.hud.show(true); this.input.enabled = true; this.input.queue.length = 0; this._updateControlsMode(); this.last = performance.now(); }
   toTitle() { this.tricks.bankNow(); this.cops.reset(this.phys.x, this.phys.z); this.respawn(true, true); this.state = 'title'; this.hud.show(false); this.touch.show(false); this.menus.show('title'); }
 
-  openGarage() {
-    this.prevState = this.state;
-    this.state = 'garage'; this.hud.show(false); this.touch.show(false);
-    this.model.group.visible = false; this.rig.orbit = 0.4;
+  // ---- shops: ride into the marker at the dealership or inside the customs garage
+  openShop(kind) {
+    if (this.state !== 'play') return;
+    if (this.cops.wanted) { if (!this._shopWarn) { this._shopWarn = true; this.hud.hint('Lose the cops first — the shops are closed to wanted riders', 3); } return; }
+    this.shop = kind; this.shopLock = kind;
+    this.tricks.bankNow(); this._tricksOff();
+    this.prevState = 'play'; this.state = 'garage';
+    this.hud.show(false); this.touch.show(false); this.input.enabled = false;
+    this.model.group.visible = false; this.rig.orbit = kind === 'customs' ? 2.6 : 0.4;
+    // park the bike so it isn't still rolling when you come back out
+    const p = this.phys; if (!p.crashed) { p.vx = p.vz = 0; p.pitchVel = 0; }
+    this.audio.ui();
+    this.menus.sel = this.save.data.bike;
+    if (kind === 'customs' && this.menus.gtab === 'bike') this.menus.gtab = 'perf';
+    this.menus.show(kind);
   }
-  closeGarage() {
+
+  closeShop() {
     if (this.preview) { this.scene.remove(this.preview.group); this.preview.dispose(); this.preview = null; }
     this.model.group.visible = true; this.rig.snap = true;
-    this.state = this.prevState === 'title' ? 'title' : 'pause';
+    this.shop = null;
+    this.resume();
+  }
+
+  // ---- full-screen map and waypoints ---------------------------------------------
+  openMap() {
+    if (this.state !== 'play') return;
+    this.state = 'map'; this.input.enabled = false; this.touch.show(false);
+    document.getElementById('mapscreen').classList.remove('hidden');
+    this._drawMap();
+  }
+  closeMap() { document.getElementById('mapscreen').classList.add('hidden'); this.resume(); }
+  _drawMap() {
+    const pp = this.foot || this.phys;
+    this.hud.bigMap(document.getElementById('bigmap'), pp.x, pp.z, pp.yaw, this.cops.units, this.cops.wanted, this.waypoints);
+  }
+  // tap the map: remove the waypoint under the finger, otherwise drop a new one
+  mapTap(cx, cy) {
+    const w = this.hud.bigMapToWorld(cx, cy);
+    if (!w) return;
+    const near = this.waypoints.findIndex((q) => Math.hypot(q.x - w.x, q.z - w.z) < 22);
+    if (near >= 0) this.waypoints.splice(near, 1);
+    else { if (this.waypoints.length >= 6) this.waypoints.shift(); this.waypoints.push(w); }
+    this.audio.ui(); this._syncBeacons(); this._drawMap();
+  }
+  clearWaypoints() { this.waypoints.length = 0; this._syncBeacons(); this._drawMap(); }
+  _syncBeacons() {
+    this.beacons.forEach((b, i) => {
+      const w = this.waypoints[i];
+      b.visible = !!w;
+      if (w) b.position.set(w.x, this.terrain.height(w.x, w.z), w.z);
+    });
+    if (!this.waypoints.length) document.getElementById('wpd').classList.add('hidden');
   }
 
   applySetting(key, val) {
@@ -361,9 +415,10 @@ class Game {
     if (this.state === 'play') this._play(dt, s, st);
     else {
       // menus: world keeps ticking, bike rests
+      if (this.state === 'map') { if (this.input.take('pause') || this.input.take('map')) this.closeMap(); else if (this.frameN % 6 === 0) { this.hud._blink += 0.1; this._drawMap(); } }
       if (this.input.take('pause') || this.input.take('confirm')) { if (this.state === 'pause') this.resume(); else if (this.state === 'title' && this.menus.current === 'title') this.startRide(); }
       this.input.queue.length = 0;
-      if (this.state !== 'pause') {
+      if (this.state !== 'pause' && this.state !== 'map') {
         this.inp.throttle = 0; this.inp.brake = 0.4; this.inp.steer = 0; this.inp.lean = 0; this.inp.hop = false; this.inp.stoppie = false; this.inp.burnout = false;
         p.step(dt, this.inp, null); p.events.length = 0;
         if (!p.crashed && Math.abs(p.speed) < 0.4) { p.vx = 0; p.vz = 0; }
@@ -393,10 +448,8 @@ class Game {
     if (input.take('camera')) { const m = this.rig.next(); st.camera = m.id; this.save.persist(); hud.camName(m.label); }
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }
     if (input.take('time')) { const k = Object.keys(TIMES); const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(TIMES[n].label); }
-    if (input.take('garage')) {
-      if (this.cops.wanted) hud.hint('Lose the cops before you hit the garage', 3);
-      else { this.pause(); this.menus.sel = this.save.data.bike; this.openGarage(); this.menus.show('garage'); return; }
-    }
+    if (input.take('garage')) hud.hint('Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);
+    if (input.take('map')) { this.openMap(); return; }
     if (input.take('burn')) {
       if (spec.drive.type !== 'electric') { this.burnout = false; hud.hint('Burnouts need a motor — try an e-bike or e-moto', 3); }
       else { this.burnout = !this.burnout; hud.camName(this.burnout ? 'Burnout mode on' : 'Burnout mode off'); }
@@ -543,7 +596,31 @@ class Game {
       combo: this.tricks.combo, label: this.tricks.label, zone: this.tricks.zone,
       wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
     });
-    if (this.frameN % 2 === 0) hud.minimap(pp.x, pp.z, pp.yaw, cp.units, cp.wanted);
+    if (this.frameN % 2 === 0) hud.minimap(pp.x, pp.z, pp.yaw, cp.units, cp.wanted, this.waypoints);
+    this._world(dt, pp);
+  }
+
+  // shop markers, the garage door, shop entry and waypoint arrival
+  _world(dt, pp) {
+    const sp = this.city.spots, t = this.time || 0;
+    for (const k of ['dealer', 'customs']) {
+      const z = sp[k], d = Math.hypot(pp.x - z.x, pp.z - z.z);
+      z.marker.rotation.y = t * 0.8; z.marker.scale.setScalar(1 + Math.sin(t * 3) * 0.04);
+      if (this.shopLock === k) { if (d > z.r + 2.5) this.shopLock = null; }
+      else if (d < z.r && Math.abs(pp.speed) < 7 && !this.phys.airTime) this.openShop(k);
+    }
+    if (!this.cops.wanted) this._shopWarn = false;
+    // the customs door rolls up when you get close
+    const c = sp.customs, near = Math.hypot(pp.x - c.doorX, pp.z - c.doorZ) < 17 || Math.hypot(pp.x - c.x, pp.z - c.z) < 12;
+    this.doorOpen = Math.max(0, Math.min(1, (this.doorOpen || 0) + (near ? dt * 1.8 : -dt * 1.2)));
+    c.door.position.y = c.doorY + this.doorOpen * (c.doorH - 0.25);
+    // waypoints: distance readout, and tick them off on arrival
+    if (this.waypoints.length) {
+      const w = this.waypoints[0], d = Math.hypot(pp.x - w.x, pp.z - w.z), el = document.getElementById('wpd');
+      if (d < 9) { this.waypoints.shift(); this._syncBeacons(); this.hud.popup('WAYPOINT REACHED', 0); this.audio.trick(); }
+      else { const txt = `WAYPOINT ${Math.round(this.save.data.settings.units === 'mph' ? d * 3.281 : d)} ${this.save.data.settings.units === 'mph' ? 'FT' : 'M'}`; if (el.textContent !== txt) el.textContent = txt; el.classList.remove('hidden'); }
+      for (const b of this.beacons) if (b.visible) b.material.opacity = 0.26 + Math.sin(t * 4) * 0.08;
+    }
   }
 
   // ---- trick switches --------------------------------------------------------

@@ -32,6 +32,7 @@
         <button id="btn-cam" aria-label="Change camera">CAM</button>
         <button id="btn-pause" aria-label="Pause">II</button>
       </div>
+      <div id="wpd" class="hidden"></div>
       <div id="camname"></div>
     </div>
     <div id="combo" class="hidden">
@@ -70,6 +71,12 @@
     <button id="t-reset">RESET</button>
     <button id="t-mount" class="hidden">GET ON</button>
     <button id="t-burn">BURNOUT</button>
+  </div>
+
+  <div id="mapscreen" class="hidden">
+    <canvas id="bigmap"></canvas>
+    <div class="maphead"><button id="map-close">CLOSE</button><div class="maptitle">MAP <small>tap to drop a waypoint · tap one to remove it</small></div><button id="map-clear">CLEAR WAYPOINTS</button></div>
+    <div class="maplegend"><span><i style="background:#ffd21f"></i>Dealership</span><span><i style="background:#34d17a"></i>Customs</span><span><i style="background:#ff4fd8"></i>Waypoint</span><span><i style="background:#9fb6ff"></i>Cops</span></div>
   </div>
 
   <div id="screens"></div>

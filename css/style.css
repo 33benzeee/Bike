@@ -272,3 +272,17 @@ body.onfoot #t-stoppie { display: none; }
 .detail .cheat input { font-size: 18px; padding: 8px 12px; }
 @media (max-height: 430px) { .mi { font-size: 11px; } .mod { padding: 5px 8px; gap: 3px; } .picker { gap: 4px; } }
 @media (max-height: 430px) { .chip { padding: 5px 8px; font-size: 11px; } .chips { gap: 4px; } .gtabs button { padding: 6px 4px; } .pstats span { font-size: 8px; } }
+
+/* full-screen map + waypoints */
+#minimap { pointer-events: auto; cursor: pointer; }
+#wpd { font: 800 13px var(--font); color: #ff4fd8; text-shadow: 0 1px 0 #000; letter-spacing: 0.04em; }
+#mapscreen { position: absolute; inset: 0; pointer-events: auto; background: #12303f; z-index: 20; }
+#bigmap { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.maphead { position: absolute; left: calc(12px + var(--sal)); right: calc(12px + var(--sar)); top: calc(10px + var(--sat)); display: flex; align-items: center; gap: 12px; pointer-events: none; font-family: var(--font); font-weight: 800; }
+.maphead button { pointer-events: auto; font: inherit; font-size: clamp(13px, 2.8vh, 18px); padding: 8px 16px; background: var(--panel); transform: skewX(-8deg); letter-spacing: 0.04em; }
+#map-close { background: var(--yel); color: #000; }
+.maptitle { flex: 1; font-style: italic; font-size: clamp(18px, 4.4vh, 30px); text-shadow: 0 2px 0 #000; }
+.maptitle small { font: 600 clamp(10px, 2vh, 13px) system-ui, sans-serif; color: #cfd6e2; margin-left: 10px; font-style: normal; }
+.maplegend { position: absolute; left: calc(12px + var(--sal)); bottom: calc(10px + var(--sab)); display: flex; flex-direction: column; gap: 4px; background: var(--panel); padding: 8px 12px; font: 600 12px system-ui, sans-serif; pointer-events: none; }
+.maplegend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+@media (max-width: 620px) { .maptitle small { display: none; } }

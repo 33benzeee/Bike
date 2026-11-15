@@ -46,7 +46,8 @@ they go away. Everything can be overridden in **Settings**.
 | Camera (chase, far, first person, handlebar) | `C` | CAM | RB |
 | Reset to the road (riding) / bring the bike to you (on foot) | `R` | RESET / CALL BIKE | Back |
 | Get on the bike when standing next to it | `F` | GET ON | — |
-| Pause, garage, mute, time of day | `P`, `G`, `M`, `T` | II | Start |
+| Full map and waypoints | `N` | tap the minimap | — |
+| Pause, mute, time of day | `P`, `M`, `T` | II | Start |
 
 **Your first wheelie:** get rolling, hold throttle and lean back. Feather the throttle to
 float in the green balance-point zone; tap the brake if it goes too far. Stopped against a
@@ -72,7 +73,11 @@ wall? Hold brake to paddle backwards.
   helicopter. Break line of sight and stay hidden to escape for a payout.
 - **Progression** — cash from combos, escapes and 21 challenges buys bikes and
   customisation. Progress saves in the browser.
-- **Garage** — a *Performance* tab with installable mods that build on each other
+- **Shops you ride to** — next to the spawn are the *Dealership* (buy and switch bikes)
+  and the *Customs* garage, whose door rolls up as you arrive. Ride into the glowing ring.
+- **Map** — tap the minimap (or press `N`) for the full map; tap it to drop waypoints,
+  which get a route on the minimap and a light beacon in the world.
+- **Customs** — a *Performance* tab with installable mods that build on each other
   (battery stages, controller, high-current tune, sprocket, weight reduction, brakes,
   tyres) plus a free suspension tune, and an *Appearance* tab with per-part paint from a
   colour picker, wraps, wheel LEDs, a flag pole and a name plate.

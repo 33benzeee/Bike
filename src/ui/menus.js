@@ -45,7 +45,8 @@ export class Menus {
     this.current = name;
     const html = name ? this['_' + name]() : '';
     this.root.innerHTML = html;
-    if (name === 'garage') { this.game.previewBike(this.sel); if (this.gtab === 'look' && this.game.save.owns(this.sel)) this.game.previewLook(this._pending()); }
+    if (name === 'dealer') this.game.previewBike(this.sel);
+    if (name === 'customs') { this.sel = this.game.save.data.bike; this.game.previewBike(this.sel); if (this.gtab === 'look') this.game.previewLook(this._pending()); }
     if (name === 'cheats' && this.game.device.type === 'desktop') { const i = this.root.querySelector('#cheat-code'); if (i) i.focus(); }
   }
 
@@ -63,8 +64,8 @@ export class Menus {
     switch (a) {
       case 'ride': au.ui(); g.startRide(); break;
       case 'resume': au.ui(); g.resume(); break;
-      case 'go': au.ui(); if (v === 'garage') { this.sel = s.data.bike; g.openGarage(); } this.show(v); break;
-      case 'back': au.ui(); if (this.current === 'garage') g.closeGarage(); this.show(this.parent); break;
+      case 'go': au.ui(); this.show(v); break;
+      case 'back': au.ui(); if (this.current === 'dealer' || this.current === 'customs') g.closeShop(); else this.show(this.parent); break;
       case 'quit': au.ui(); g.toTitle(); break;
       case 'sel': au.ui(); this.sel = v; if (!s.owns(v)) this.gtab = 'bike'; this.refresh(); break;
       case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.refresh(); break;
@@ -127,7 +128,6 @@ export class Menus {
       <div class="tag">${pause ? 'Take a breather.' : 'Wheelies. Tricks. Traffic. Trouble.'}</div>
       <div class="menu">
         <button class="btn primary" data-a="${pause ? 'resume' : 'ride'}">${pause ? 'RESUME' : 'RIDE'}</button>
-        <button class="btn" data-a="go" data-v="garage">GARAGE <small>${money(g.save.cash)}</small></button>
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
         <button class="btn" data-a="go" data-v="settings">SETTINGS</button>
@@ -257,10 +257,10 @@ export class Menus {
     return `<div class="sec">Paint</div><div class="chips">${paintChips}</div><div class="sec">Extras</div><div class="chips">${extraChips}</div>${body}`;
   }
 
-  _garage() {
+  // ---- dealership: browse, buy and pick your ride
+  _dealer() {
     const g = this.game, s = g.save, id = this.sel, bike = BIKE_BY_ID[id];
     const owned = s.owns(id), entry = s.entry(id) || newEntry();
-    if (!owned) this.gtab = 'bike';
     const spec = effectiveSpec(bike, entry), bars = statBars(spec);
     const top = Math.round(spec.drive.topSpeed * (s.data.settings.units === 'mph' ? 2.237 : 3.6));
     const list = BIKES.map((b) => {
@@ -273,21 +273,35 @@ export class Menus {
     if (!owned) cta = `<button class="cta" data-a="buy" data-v="${id}" ${s.cash < bike.price ? 'disabled' : ''}>${s.cash < bike.price ? `NEED ${money(bike.price - s.cash)} MORE` : `BUY — ${money(bike.price)}`}</button>`;
     else if (s.data.bike !== id) cta = `<button class="cta" data-a="use" data-v="${id}">RIDE THIS ONE</button>`;
     else cta = '<button class="cta ghost" data-a="back">YOUR RIDE — LET\'S GO</button>';
-    const tab = (k, n) => `<button class="${this.gtab === k ? 'on' : ''}" data-a="gtab" data-v="${k}" ${owned || k === 'bike' ? '' : 'disabled'}>${n}</button>`;
-    let body;
-    if (this.gtab === 'perf') body = this._perfTab(bike, entry);
-    else if (this.gtab === 'look') body = this._lookTab(bike, entry);
-    else body = `<div class="blurb">${bike.blurb}</div>
-          ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
-          ${cta}
-          ${owned ? '<div class="mi">Open <b>Performance</b> for mods and <b>Appearance</b> for paint, wraps, LEDs, a flag and a name plate.</div>' : '<div class="sec">Buy it to unlock mods and customisation</div>'}`;
     return `<div class="screen" id="garage">
-      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">GARAGE</div><div class="cash">${money(s.cash)}</div></div>
+      <div class="head"><button class="back" data-a="back">LEAVE</button><div class="h1">DEALERSHIP</div><div class="cash">${money(s.cash)}</div></div>
       <div class="body">
         <div class="bikes scroll">${list}</div>
         <div class="detail">
           <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
-          <div class="gtabs">${tab('bike', 'BIKE')}${tab('perf', 'PERFORMANCE')}${tab('look', 'APPEARANCE')}</div>
+          <div class="scroll gbody"><div class="blurb">${bike.blurb}</div>
+          ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
+          ${cta}
+          <div class="mi">Mods, paint and wraps are next door at <b>Customs</b>.</div></div>
+        </div>
+      </div></div>`;
+  }
+
+  // ---- customs: mods and looks for the bike you rode in on
+  _customs() {
+    const g = this.game, s = g.save, id = s.data.bike, bike = BIKE_BY_ID[id];
+    this.sel = id;
+    const entry = s.entry(id) || newEntry();
+    if (this.gtab === 'bike') this.gtab = 'perf';
+    const tab = (k, n) => `<button class="${this.gtab === k ? 'on' : ''}" data-a="gtab" data-v="${k}">${n}</button>`;
+    const body = this.gtab === 'look' ? this._lookTab(bike, entry) : this._perfTab(bike, entry);
+    return `<div class="screen" id="garage">
+      <div class="head"><button class="back" data-a="back">LEAVE</button><div class="h1">CUSTOMS</div><div class="cash">${money(s.cash)}</div></div>
+      <div class="body">
+        <div></div>
+        <div class="detail">
+          <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
+          <div class="gtabs">${tab('perf', 'PERFORMANCE')}${tab('look', 'APPEARANCE')}</div>
           <div class="scroll gbody">${body}</div>
         </div>
       </div></div>`;
@@ -349,7 +363,8 @@ export class Menus {
       <span><kbd>C</kbd></span><span>Change camera</span>
       <span><kbd>R</kbd></span><span>Riding: reset to the road. After a crash: get up right away, then <kbd>R</kbd> again brings your bike to you</span>
       <span><kbd>F</kbd></span><span>Get on the bike when you're standing next to it</span>
-      <span><kbd>G</kbd> <kbd>P</kbd> <kbd>M</kbd> <kbd>T</kbd></span><span>Garage, pause, mute, time of day</span>
+      <span><kbd>N</kbd></span><span>Open the full map — click it to drop waypoints (or click the minimap)</span>
+      <span><kbd>P</kbd> <kbd>M</kbd> <kbd>T</kbd></span><span>Pause, mute, time of day</span>
     </div>`;
     const touch = `<div class="keys">
       <span class="k"><b>Left stick</b></span><span>Slide left / right to steer. Pull <b>down</b> to lean back (wheelie), push <b>up</b> to lean forward.</span>
@@ -361,6 +376,7 @@ export class Menus {
       <span class="k"><b>Trick buttons</b></span><span>Tap to switch a trick on (the button lights up), tap again to switch it off. They switch off by themselves when the wheelie or jump ends. With <b>NO HANDS</b> you can't use GAS, BRAKE, WHEELIE or STOPPIE and steering is weak; with <b>ONE HAND</b> you can't pull up or hop.</span>
       <span class="k"><b>BURNOUT</b></span><span>Switch burnout mode on or off. With it on, hold GAS to smoke the rear tyre and steer to spin (motor bikes only).</span>
       <span class="k"><b>RESET / CALL BIKE</b></span><span>Riding: puts you back on the road. On foot after a crash: brings your bike to you. Walk with the stick and GAS, then tap <b>GET ON</b> next to the bike.</span>
+      <span class="k"><b>Minimap</b></span><span>Tap it to open the full map, then tap anywhere to drop a waypoint.</span>
       <span class="k"><b>CAM / II</b></span><span>Change camera, pause.</span>
     </div>`;
     const pad = `<div class="keys">
@@ -375,6 +391,7 @@ export class Menus {
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">HOW TO RIDE</div></div>
       <div class="scroll">
         <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. Tap a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
+        <div class="tip"><b>Shops:</b> next to where you start are the <b>Dealership</b> (buy and switch bikes) and the <b>Customs</b> garage (mods, paint, wraps). Ride into the glowing ring at each to go in. Both are marked on the map.</div>
         <div class="tip"><b>Cops:</b> wheelies, speeding and e-motos get you noticed. Once they chase, break line of sight — alleys, parks and gaps cars can't fit through — and stay hidden until the bar fills. Higher heat means roadblocks, bike cops and a helicopter, but a bigger payout when you escape.</div>
         ${order.map(([t, h]) => `<div class="sec" style="margin:16px 0 8px">${t}</div>${h}`).join('')}
       </div></div></div>`;
