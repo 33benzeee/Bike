@@ -226,3 +226,7 @@ body.onfoot #t-reset { width: calc(96px * var(--u)); }
 /* stoppie button: above the stick, out of the way of normal braking */
 #t-stoppie { left: calc(26px * var(--u) + var(--sal)); bottom: calc(184px * var(--u) + var(--sab)); width: calc(100px * var(--u)); height: calc(46px * var(--u)); border-radius: calc(12px * var(--u)); border-color: var(--red) !important; font-size: calc(13px * var(--u)) !important; }
 body.onfoot #t-stoppie { display: none; }
+
+/* trick switches */
+#tricks button.lit { background: var(--yel); color: #000; border-color: var(--yel); }
+#trk { border-color: var(--yel); min-width: 0; }

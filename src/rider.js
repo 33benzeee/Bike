@@ -258,7 +258,7 @@ export class Rider {
     hip.z += standG * 0.08 - superman * 0.25;
     hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
-    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 - w.one * 0.08, 'YXZ');
+    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08, 'YXZ');
     this.head.rotation.set(clamp(0.12 + phys.pitch - this.torsoPitch, -0.9, 0.8), phys.steer * 0.3, 0);
     this.torso.updateMatrix();
 
@@ -273,7 +273,7 @@ export class Rider {
       a.target.copy(s === 0 ? this._gl : this._gr);
       a.target.y += 0.02;
       // free-hand poses
-      const no = w.no, one = s === 1 ? w.one * (1 - no) : 0;
+      const no = w.no, one = s === 0 ? w.one * (1 - no) : 0;
       if (no > 0.01) { _t.copy(a.root); _t.x += sx * 0.46; _t.y += 0.2 + Math.sin(this.t * 5 + s) * 0.03; _t.z -= 0.08; a.target.lerp(_t, no); }
       if (one > 0.01) { _t.copy(a.root); _t.x += sx * 0.3; _t.y += 0.44 + Math.sin(this.t * 10) * 0.04; _t.z += 0.06; a.target.lerp(_t, one); }
       _p.set(sx * 1, -0.6, -0.5);

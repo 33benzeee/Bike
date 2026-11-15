@@ -169,7 +169,7 @@ export class Menus {
       <span><kbd>X</kbd></span><span>Front brake / stoppie — hold it on the ground to lift the tail. In a wheelie it only stops the front wheel, it doesn't bring the bike down. Normal braking with <kbd>S</kbd> never tips you over the bars.</span>
       <span><kbd>E</kbd></span><span>Lean forward — keeps a powerful bike's front down, rotates you forwards in the air</span>
       <span><kbd>Space</kbd></span><span>Bunny hop (hold to crouch, release to pop)</span>
-      <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>One-hander, no-hander, seat stander, foot drag (also <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>) — hold during a wheelie or in the air</span>
+      <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>One-hander, no-hander, seat stander, foot drag (also <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>) — tap to switch a trick on, tap again to switch it off. They switch off by themselves when the wheelie or jump ends. With no hands you can't use the throttle, brakes or pull; with one hand you can't pull or hop</span>
       <span><kbd>B</kbd></span><span>Burnout mode on / off — then hold throttle to light up the rear tyre, steer to spin donuts (motor bikes only)</span>
       <span><kbd>C</kbd></span><span>Change camera</span>
       <span><kbd>R</kbd></span><span>Riding: reset to the road. After a crash: get up right away, then <kbd>R</kbd> again brings your bike to you</span>
@@ -183,7 +183,7 @@ export class Menus {
       <span class="k"><b>WHEELIE</b></span><span>Pulls the front wheel up. Hold GAS, press it, then balance with GAS and BRAKE. (Pulling the stick down does the same.)</span>
       <span class="k"><b>STOPPIE</b></span><span>The front brake on its own. Hold it on the ground to lift the tail into a stoppie. In a wheelie it only stops the front wheel — use BRAKE to bring the bike down. BRAKE on its own never tips you over the bars.</span>
       <span class="k"><b>HOP</b></span><span>Hold to crouch, release to bunny hop.</span>
-      <span class="k"><b>Trick buttons</b></span><span>Hold during a wheelie or in the air.</span>
+      <span class="k"><b>Trick buttons</b></span><span>Tap to switch a trick on (the button lights up), tap again to switch it off. They switch off by themselves when the wheelie or jump ends. With <b>NO HANDS</b> you can't use GAS, BRAKE, WHEELIE or STOPPIE and steering is weak; with <b>ONE HAND</b> you can't pull up or hop.</span>
       <span class="k"><b>BURNOUT</b></span><span>Switch burnout mode on or off. With it on, hold GAS to smoke the rear tyre and steer to spin (motor bikes only).</span>
       <span class="k"><b>RESET / CALL BIKE</b></span><span>Riding: puts you back on the road. On foot after a crash: brings your bike to you. Walk with the stick and GAS, then tap <b>GET ON</b> next to the bike.</span>
       <span class="k"><b>CAM / II</b></span><span>Change camera, pause.</span>
@@ -199,7 +199,7 @@ export class Menus {
     return `<div class="screen center"><div class="col panel">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">HOW TO RIDE</div></div>
       <div class="scroll">
-        <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. Hold a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
+        <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. Tap a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
         <div class="tip"><b>Cops:</b> wheelies, speeding and e-motos get you noticed. Once they chase, break line of sight — alleys, parks and gaps cars can't fit through — and stay hidden until the bar fills. Higher heat means roadblocks, bike cops and a helicopter, but a bigger payout when you escape.</div>
         ${order.map(([t, h]) => `<div class="sec" style="margin:16px 0 8px">${t}</div>${h}`).join('')}
       </div></div></div>`;

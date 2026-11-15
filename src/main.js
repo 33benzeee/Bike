@@ -73,6 +73,7 @@ class Game {
     this.lamp = new THREE.SpotLight(0xfff0d0, 0, 60, 0.55, 0.6, 1.4);
     this.scene.add(this.lamp, this.lamp.target);
 
+    this.trickOn = [false, false, false, false]; this.trickHeld = [false, false, false, false]; this.trickUp = false; this.trickDownT = 0;
     this.inp = { throttle: 0, brake: 0, steer: 0, lean: 0, hop: false, assist: st.assist, comDX: 0, comDY: 0, wobble: 0 };
     this.state = 'title'; this.prevState = 'title';
     this.model = null; this.preview = null; this.previewId = null;
@@ -158,6 +159,7 @@ class Game {
     if (keepPos) this.phys.reset(x, z, yaw); else this.phys.reset(h.x, h.z, h.yaw);
     this.rig.snap = true; this.safe.length = 0;
     this.burnout = false; this.foot = null; this.nearBike = false; document.body.classList.remove('onfoot');
+    this._tricksOff();
     const bp = document.getElementById('burn'); if (bp) { bp.classList.add('hidden'); document.getElementById('t-burn').classList.remove('on'); }
   }
 
@@ -262,7 +264,7 @@ class Game {
 
   respawn(home, quiet) {
     const p = this.phys, h = this.city.spots.home;
-    this._footUI(false);
+    this._footUI(false); this._tricksOff();
     this.rider.endRagdoll(this.model.group);
     const s = !home && this.safe.length ? this.safe[Math.max(0, this.safe.length - 3)] : null;
     if (s) p.reset(s.x, s.z, s.yaw); else p.reset(h.x, h.z, h.yaw);
@@ -339,12 +341,43 @@ class Game {
     input.take('confirm');
 
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
-    const w = this.rider.w;
+    const w = this.rider.w, tk = this.trickOn;
+    // tricks are switches: tap to start, tap again to stop
+    for (let i = 0; i < 4; i++) {
+      if (s.tricks[i] && !this.trickHeld[i] && !p.crashed) {
+        tk[i] = !tk[i];
+        if (tk[i] && i < 2) tk[1 - i] = false; // one-hander and no-hander can't both be on
+        this._trickUI();
+      }
+      this.trickHeld[i] = s.tricks[i];
+    }
+    // ...and they switch themselves off when the wheelie or jump ends, or you crash
+    const up = p.wheelieT > 0.2 || p.airTime > 0.3;
+    if (up) { this.trickUp = true; this.trickDownT = 0; }
+    else if (this.trickUp && p.frontContact && p.rearContact) { this.trickDownT += dt; if (this.trickDownT > 0.35) { this.trickUp = false; this._tricksOff(); } }
+    if (p.crashed) this._tricksOff();
+
     inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist;
-    inp.burnout = !!this.burnout;
+    let frontLever = s.stoppie;
+    // what your hands and feet are doing limits what you can control
+    if (w.no > 0.5) {
+      // no hands on the bars: no throttle grip, no brake levers, no pulling, body-lean steering only
+      if (spec.drive.type === 'electric') inp.throttle = 0;
+      inp.brake = 0; frontLever = false; inp.hop = false; inp.steer *= 0.35;
+      if (inp.lean > 0) inp.lean = 0;
+    } else if (w.one > 0.5) {
+      // one hand: you can't yank the bars or hop
+      inp.hop = false; if (inp.lean > 0) inp.lean = 0;
+    }
+    if (w.stand > 0.5 && w.air < 0.5) {
+      // standing on the seat: feet are off the pedals
+      if (spec.drive.type === 'pedal') inp.throttle = 0;
+      inp.hop = false;
+    }
+    inp.burnout = !!this.burnout && w.no < 0.5;
     // the stoppie button is the front brake on its own: on the ground it lifts the
     // tail, in a wheelie it only stops the front wheel spinning
-    inp.stoppie = s.stoppie;
+    inp.stoppie = frontLever;
     inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
 
@@ -409,7 +442,7 @@ class Game {
       if (this.tricks.zone === 2) { this._v.copy(model.anchors.tail); model.group.localToWorld(this._v); this.effects.sparks(this._v.x, ry, this._v.z, 3, p.vx, p.vz); }
     }
 
-    this._visual(dt, { one: s.tricks[0], no: s.tricks[1], stand: s.tricks[2], drag: s.tricks[3] });
+    this._visual(dt, { one: tk[0], no: tk[1], stand: tk[2], drag: tk[3] });
     this.rider.setFirstPerson(this.rig.id === 'first' && !p.crashed);
     if (this.foot) this.rig.foot(dt, this.foot); else this.rig.update(dt, p, model, this.rider);
     this.sky.update(pp.x, pp.y, pp.z);
@@ -439,6 +472,21 @@ class Game {
       wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
     });
     if (this.frameN % 2 === 0) hud.minimap(pp.x, pp.z, pp.yaw, cp.units, cp.wanted);
+  }
+
+  // ---- trick switches --------------------------------------------------------
+  _tricksOff() {
+    if (!this.trickOn.some(Boolean)) return;
+    this.trickOn.fill(false); this._trickUI();
+  }
+
+  _trickUI() {
+    const names = ['ONE-HANDER', 'NO-HANDER', 'SEAT STANDER', 'FOOT DRAG'];
+    const btns = document.getElementById('tricks').children, on = [];
+    for (let i = 0; i < 4; i++) { btns[i].classList.toggle('lit', this.trickOn[i]); if (this.trickOn[i]) on.push(names[i]); }
+    const pill = document.getElementById('trk');
+    pill.classList.toggle('hidden', !on.length);
+    pill.firstChild.textContent = on.join(' + ') + ' ON';
   }
 
   // ---- on foot ---------------------------------------------------------------
