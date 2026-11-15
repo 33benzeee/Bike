@@ -43,7 +43,7 @@ export class BikePhysics {
     this.vx = this.vy = this.vz = 0;
     this.pitchVel = 0;
     this.lean = 0; this.leanVel = 0;
-    this.steer = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
+    this.steer = 0; this.steerVel = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
     this.cx = sp ? sp.com[0] : 0.45; this.cy = sp ? sp.com[1] : 0.5;
     this.rearPen = 0; this.frontPen = 0;
     this.rearContact = true; this.frontContact = true;
@@ -82,8 +82,12 @@ export class BikePhysics {
     const sp = this.spec;
 
     // ---- input smoothing
-    const sr = Math.abs(inp.steer) > Math.abs(this.steer) ? 8 : 12;
-    this.steer += (inp.steer - this.steer) * (1 - Math.exp(-dt * sr));
+    // steering input eases in and out (critically damped), so turns build smoothly
+    {
+      const wn = Math.abs(inp.steer) > Math.abs(this.steer) ? 11 : 14;
+      this.steerVel += (wn * wn * (inp.steer - this.steer) - 2 * wn * this.steerVel) * dt;
+      this.steer = clamp(this.steer + this.steerVel * dt, -1, 1);
+    }
     const tr = sp.drive.type === 'pedal' ? 6 : 7;
     this.throttle += clamp(inp.throttle - this.throttle, -dt * 25, dt * tr);
     this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 11);
@@ -232,6 +236,32 @@ export class BikePhysics {
     let fnTotal = 0, surfGrip = 1;
     let rearC = false, frontC = false;
     this.slipRear = false; this.rearLocked = false; this.frontLocked = false;
+
+    // ---- walls. A wheel can roll up kerbs, stairs and ramps, but a face taller
+    // than its axle is a wall: stop against it instead of being fired upwards.
+    {
+      const dir = u >= 0 ? 1 : -1;
+      for (let k = 0; k < 2; k++) {
+        const rs = k === 0 ? (L - cx) * ct + cy * st : -cx * ct + cy * st, ry = k === 0 ? (L - cx) * st - cy * ct : -cx * st - cy * ct;
+        const r = k === 0 ? sp.rF : sp.rR, wy = this.y + ry;
+        let wx = this.x + hx * rs, wz = this.z + hz * rs, hit = false;
+        for (let n = 0; n < 8; n++) {
+          // look just past the tyre's leading edge, further than the contact probe reaches
+          const reach = r + 0.09;
+          // measured from the ground under the wheel, so a compressed fork on a
+          // ramp isn't mistaken for hitting a wall
+          const hc = T.height(wx, wz), top = Math.max(wy, hc + r * 0.9) + 0.03;
+          if (hc <= wy + 0.03 && T.height(wx + hx * dir * reach, wz + hz * dir * reach) <= top && T.height(wx + hx * dir * reach * 0.5, wz + hz * dir * reach * 0.5) <= top) break;
+          const back = r * 0.2 * dir;
+          wx -= hx * back; wz -= hz * back; this.x -= hx * back; this.z -= hz * back; hit = true;
+        }
+        if (hit && u * dir > 0) {
+          if (Math.abs(u) > sp.crashSpeed) { this.vx *= 0.3; this.vz *= 0.3; this._crash('hit', Math.abs(u)); return; }
+          if (Math.abs(u) > 0.8) this.events.push({ type: 'bump', speed: Math.abs(u), ref: null, cop: false });
+          u = -0.12 * u; if (this.pitchVel * dir > 0) this.pitchVel *= 0.3;
+        }
+      }
+    }
 
     // ---- rear wheel
     const rsR = -cx * ct + cy * st, ryR = -cx * st - cy * ct;
@@ -384,7 +414,7 @@ export class BikePhysics {
     this.pitchVel += (tq / I) * h;
 
     // ---- lateral grip
-    let latA = sp.grip * surfGrip * (fnTotal / m) * 1.05;
+    let latA = sp.grip * surfGrip * (fnTotal / m) * 1.7;
     if (this.rearLocked || this.slipRear) latA *= 0.5;
     w -= clamp(w, -latA * h, latA * h);
 
@@ -392,20 +422,21 @@ export class BikePhysics {
     const au = Math.abs(u);
     let yawRate;
     if (any) {
-      const aLatMax = sp.grip * surfGrip * G * 0.88;
+      // The bars turn the bike directly; lean is how the bike looks while it does
+      // it, not what makes it turn. Tight at low speed, limited by grip at speed.
+      const aLatMax = sp.grip * surfGrip * G * 1.3;
       const kGeo = Math.tan(sp.steerMax) / L;
       this.frontG += ((frontC ? 1 : 0) - this.frontG) * Math.min(1, 12 * h);
       const authority = sp.wheelieSteer + (1 - sp.wheelieSteer) * this.frontG;
       const kCmd = this.steer * Math.min(kGeo, aLatMax / Math.max(u * u, 0.01)) * authority;
-      const leanTarget = Math.atan((u * u * kCmd) / G);
-      const wn = sp.leanRate * (0.7 + 0.3 * this.frontG);
-      let la = wn * wn * (leanTarget - this.lean) - 2 * 0.85 * wn * this.leanVel;
+      yawRate = u * kCmd;
+      // a modest tilt into the turn, never laid right over
+      const leanTarget = clamp(Math.atan((u * yawRate) / G) * 0.55, -0.42, 0.42);
+      const wn = sp.leanRate * (0.75 + 0.25 * this.frontG);
+      let la = wn * wn * (leanTarget - this.lean) - 2 * wn * this.leanVel;
       if (inp.wobble > 0 && !frontC) la += (Math.random() - 0.5) * 14 * inp.wobble;
       this.leanVel += la * h;
       this.lean += this.leanVel * h;
-      const b = smooth(2.5, 6, au);
-      const kLean = (G * Math.tan(this.lean)) / Math.max(u * u, 6.25);
-      yawRate = u * ((1 - b) * kCmd + b * kLean);
       if (this.rearLocked && frontC && au > 3) yawRate += this.steer * 1.5 * Math.min(1, au / 8);
       if (this.burning) yawRate += this.steer * 2.4 * this.throttle; // swing the back end round: donuts
       this.airYaw = 0;

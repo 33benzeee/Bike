@@ -77,7 +77,7 @@ export class CameraRig {
       // follow where the bike is going, not every twitch of the bars
       const travel = speed > 2.5 ? Math.atan2(phys.vx, phys.vz) : phys.yaw;
       const want = phys.yaw + angDiff(travel, phys.yaw) * 0.5;
-      this.yaw += angDiff(want, this.yaw) * Math.min(1, dt * (far ? 2.6 : 3.6));
+      this.yaw += angDiff(want, this.yaw) * Math.min(1, dt * (far ? 3 : 4.2));
       const wheelie = phys.wheelieT > 0.15 || (phys.pitch < -0.25 && phys.frontContact);
       this.side += ((wheelie && !far ? 1 : 0) - this.side) * Math.min(1, dt * 2.2);
       const dist = (far ? 9 : 4.7) + speed * 0.045, height = (far ? 4.4 : 1.75) - this.side * 0.5;
@@ -103,7 +103,7 @@ export class CameraRig {
       cam.position.copy(this.pos);
       cam.position.x += (Math.random() - 0.5) * sh; cam.position.y += (Math.random() - 0.5) * sh;
       cam.lookAt(this.look);
-      cam.rotation.z += -phys.lean * 0.12;
+      cam.rotation.z += -phys.lean * 0.07;
     } else {
       this.yaw = phys.yaw;
       if (id === 'first') {
