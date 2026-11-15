@@ -1,5 +1,5 @@
 // Save data (localStorage), stats and challenges.
-import { BIKES } from './bikes.js';
+import { BIKES, newEntry, upgradeEntry } from './bikes.js';
 
 const KEY = 'wheelie-works-save-v2';
 
@@ -29,7 +29,7 @@ export const CHALLENGES = [
 
 const DEFAULTS = () => ({
   cash: 0, bike: 'wheelie',
-  owned: { wheelie: { up: {}, paint: 0 } },
+  owned: { wheelie: newEntry() },
   stats: {}, done: {},
   settings: { assist: 1, units: 'mph', time: 'day', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
 });
@@ -44,6 +44,7 @@ export class Save {
         this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) } };
       }
     } catch (e) { /* private mode or corrupt save: start fresh */ }
+    for (const id of Object.keys(this.data.owned)) this.data.owned[id] = upgradeEntry(this.data.owned[id]); // older saves
     if (!BIKES.some((b) => b.id === this.data.bike) || !this.data.owned[this.data.bike]) this.data.bike = 'wheelie';
     this._t = null; this.onChallenge = null;
   }
@@ -58,7 +59,11 @@ export class Save {
   get cash() { return this.data.cash; }
   earn(n) { this.data.cash = Math.max(0, Math.round(this.data.cash + n)); this.persist(); }
   owns(id) { return !!this.data.owned[id]; }
-  entry(id = this.data.bike) { return this.data.owned[id]; }
+  entry(id = this.data.bike) {
+    const e = this.data.owned[id];
+    if (e && !e.look) return (this.data.owned[id] = upgradeEntry(e)); // entry from an older save
+    return e;
+  }
 
   // record a stat (max, or sum for counters) and pay out any finished challenges
   stat(name, value) {

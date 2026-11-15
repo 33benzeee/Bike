@@ -4,7 +4,7 @@ import { Terrain, circleVsObstacle } from './world/terrain.js';
 import { buildCity, CURB } from './world/city.js';
 import { Sky, TIMES } from './world/sky.js';
 import { BikePhysics } from './physics.js';
-import { BIKE_BY_ID, PAINTS, UPGRADE_LEVELS, effectiveSpec, upgradePrice } from './bikes.js';
+import { BIKE_BY_ID, MOD_BY_ID, PAINT_PARTS, PRICES, effectiveSpec, lookOf, modPrice, modState, setModEquipped, newEntry } from './bikes.js';
 import { buildBike, poseBike } from './bikeModel.js';
 import { Rider } from './rider.js';
 import { Input } from './input.js';
@@ -145,14 +145,14 @@ class Game {
   }
 
   // ---- bikes ----------------------------------------------------------------
-  paintOf(id) { const e = this.save.entry(id); const p = PAINTS[(e && e.paint) || 0]; return p && p.color !== null ? p.color : BIKE_BY_ID[id].paint; }
-  specOf(id) { const e = this.save.entry(id); return effectiveSpec(BIKE_BY_ID[id], e ? e.up : {}); }
+  lookFor(id) { return lookOf(this.save.entry(id)); }
+  specOf(id) { return effectiveSpec(BIKE_BY_ID[id], this.save.entry(id)); }
 
   setBike(id, keepPos) {
     const old = this.phys, at = this.foot || old, x = at.x, z = at.z, yaw = at.yaw;
     if (this.model) { this.rider.endRagdoll(this.model.group); this.scene.remove(this.model.group); this.model.group.remove(this.rider.group); this.model.dispose(); }
     const spec = this.specOf(id);
-    this.model = buildBike(spec, this.paintOf(id));
+    this.model = buildBike(spec, this.lookFor(id));
     this.scene.add(this.model.group); this.model.group.add(this.rider.group);
     this.phys.setSpec(spec);
     const h = this.city.spots.home;
@@ -166,7 +166,7 @@ class Game {
   buyBike(id) {
     const b = BIKE_BY_ID[id], s = this.save;
     if (s.owns(id) || s.cash < b.price) return false;
-    s.data.cash -= b.price; s.data.owned[id] = { up: {}, paint: 0 }; s.persist();
+    s.data.cash -= b.price; s.data.owned[id] = newEntry(); s.persist();
     this.selectBike(id);
     this.hud.toast('NEW RIDE', b.name, b.brand);
     return true;
@@ -179,29 +179,96 @@ class Game {
     this.model.group.visible = false;
   }
 
-  buyUpgrade(id, key) {
-    const s = this.save, e = s.entry(id), b = BIKE_BY_ID[id];
-    if (!e) return false;
-    const lv = e.up[key] || 0;
-    if (lv >= UPGRADE_LEVELS) return false;
-    const price = upgradePrice(b, lv + 1);
+  // ---- performance mods -----------------------------------------------------
+  _respec(id) {
+    this.save.persist();
+    if (id === this.save.data.bike) { const spec = this.specOf(id); this.phys.setSpec(spec); this.model.spec = spec; }
+  }
+
+  buyMod(id, modId) {
+    const s = this.save, e = s.entry(id), b = BIKE_BY_ID[id], mod = MOD_BY_ID[modId];
+    if (!e || !mod || modState(e, mod) !== 'buy') return false;
+    const price = modPrice(b, mod);
     if (s.cash < price) return false;
-    s.data.cash -= price; e.up[key] = lv + 1; s.persist();
-    if (id === s.data.bike) { const spec = this.specOf(id); this.phys.setSpec(spec); this.model.spec = spec; }
+    s.data.cash -= price; e.mods[modId] = 1; setModEquipped(e, modId, true);
+    this._respec(id);
     return true;
   }
 
-  setPaint(id, idx) {
+  toggleMod(id, modId) {
     const e = this.save.entry(id);
-    if (!e) return;
-    e.paint = idx; this.save.persist();
-    if (id === this.save.data.bike) this.model.setPaint(this.paintOf(id));
-    if (this.preview && this.previewId === id) this.preview.setPaint(this.paintOf(id));
+    if (!e || !e.mods[modId]) return false;
+    setModEquipped(e, modId, e.mods[modId] !== 2);
+    this._respec(id);
+    return true;
+  }
+
+  setSusp(id, tune) { const e = this.save.entry(id); if (!e) return; e.susp = tune; this._respec(id); }
+
+  // ---- appearance ---------------------------------------------------------------
+  _relook(id) {
+    this.save.persist();
+    const look = this.lookFor(id);
+    if (id === this.save.data.bike) this.model.setLook(look);
+    if (this.preview && this.previewId === id) this.preview.setLook(look);
+  }
+  // show an unsaved design on the garage preview only
+  previewLook(look) { if (this.preview) this.preview.setLook(look); }
+  _pay(price) { if (this.save.cash < price) return false; this.save.data.cash -= price; return true; }
+
+  // part = a paint slot id or 'all'; color = hex number, or null to go back to stock (free)
+  buyPaint(id, part, color) {
+    const e = this.save.entry(id);
+    if (!e) return false;
+    const slots = part === 'all' ? PAINT_PARTS.map((p) => p.id) : [part];
+    if (color === null) { for (const k of slots) delete e.look.colors[k]; this._relook(id); return true; }
+    if (!this._pay(part === 'all' ? PRICES.paintAll : PRICES.paint)) return false;
+    for (const k of slots) e.look.colors[k] = color;
+    this._relook(id);
+    return true;
+  }
+
+  buyWrap(id, wrapId, color) {
+    const e = this.save.entry(id);
+    if (!e) return false;
+    if (!wrapId) { e.look.wrap = null; this._relook(id); return true; }
+    if (!e.look.wraps[wrapId]) { if (!this._pay(PRICES.wrap)) return false; e.look.wraps[wrapId] = true; }
+    e.look.wrap = { id: wrapId, color };
+    this._relook(id);
+    return true;
+  }
+
+  buyLeds(id, mode, color) {
+    const e = this.save.entry(id);
+    if (!e) return false;
+    if (!e.look.leds.owned) { if (!this._pay(PRICES.leds)) return false; e.look.leds.owned = true; }
+    e.look.leds.mode = mode; e.look.leds.color = color;
+    this._relook(id);
+    return true;
+  }
+
+  buyFlag(id, flagId) {
+    const e = this.save.entry(id);
+    if (!e) return false;
+    if (flagId && !e.look.flag.owned) { if (!this._pay(PRICES.flag)) return false; e.look.flag.owned = true; }
+    e.look.flag.id = flagId || null;
+    this._relook(id);
+    return true;
+  }
+
+  buyPlate(id, text) {
+    const e = this.save.entry(id);
+    if (!e) return false;
+    text = String(text || '').toUpperCase().replace(/[^A-Z0-9 \-]/g, '').slice(0, 10).trim();
+    if (text && !e.look.plate.owned) { if (!this._pay(PRICES.plate)) return false; e.look.plate.owned = true; }
+    e.look.plate.text = text;
+    this._relook(id);
+    return true;
   }
 
   previewBike(id) {
     if (this.preview) { this.scene.remove(this.preview.group); this.preview.dispose(); }
-    this.preview = buildBike(this.specOf(id), this.paintOf(id)); this.previewId = id;
+    this.preview = buildBike(this.specOf(id), this.lookFor(id)); this.previewId = id;
     const h = this.city.spots.home, g = this.preview.group;
     g.position.set(h.shopX, CURB + this.preview.spec.rR, h.shopZ + 7);
     g.rotation.set(0, 0.6, -0.12, 'YXZ');
@@ -310,6 +377,9 @@ class Game {
       this.audio.update(dt, { speed: 0, wheelSpeed: 0, topSpeed: 10, throttle: 0, electric: true, active: false });
       this.sky.update(this.camera.position.x, 0, this.camera.position.z);
     }
+    this.time = (this.time || 0) + dt;
+    this.model.animate(this.time, this.phys.crashed ? 0 : this.phys.speed);
+    if (this.preview) this.preview.animate(this.time, 0);
     this.effects.update(dt);
     if (!this.skipRender) this.renderer.render(this.scene, this.camera);
     this._adapt(raw);

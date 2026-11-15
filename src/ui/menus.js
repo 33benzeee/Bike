@@ -1,5 +1,5 @@
 // Title, pause, garage, settings, challenges and controls screens.
-import { BIKES, BIKE_BY_ID, PAINTS, UPGRADE_LEVELS, upgradesFor, upgradePrice, effectiveSpec, statBars } from '../bikes.js';
+import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
 import { TIMES } from '../world/sky.js';
 import { CAM_MODES } from '../camera.js';
@@ -7,11 +7,30 @@ import { DEVICE_LABEL } from '../device.js';
 import { money } from './hud.js';
 
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+// h, s, v in 0..1 -> 0xRRGGBB
+function hsv(h, s, v) {
+  const f = (n) => { const k = (n + h * 6) % 6; return Math.round(255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1)))); };
+  return (f(5) << 16) | (f(3) << 8) | f(1);
+}
+const SWATCHES = [0x15171c, 0xf2f2f2, 0xd42a2a, 0xf07a1a, 0xffd21f, 0xb4e61e, 0x1fa64a, 0x3fd1a4, 0x1c6cf2, 0x7a3fd1, 0xf0388c, 0x8c8f94];
+const pct = (v) => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
 
 export class Menus {
   constructor(game) {
     this.game = game; this.root = document.getElementById('screens');
     this.current = null; this.parent = 'title'; this.sel = game.save.data.bike;
+    this.gtab = 'bike'; this.target = 'all'; this.color = 0x7a3fd1; this.hsv = [0.74, 0.7, 0.82];
+    this.pick = { wrap: null, led: 'solid', flag: 'checkered' };
+    // colour sliders and the plate text update the preview live, without re-rendering
+    this.root.addEventListener('input', (e) => {
+      const id = e.target.id;
+      if (id === 'c-h' || id === 'c-s' || id === 'c-v') {
+        this.hsv = ['c-h', 'c-s', 'c-v'].map((k) => +this.root.querySelector('#' + k).value / 100);
+        this.color = hsv(this.hsv[0], this.hsv[1], this.hsv[2]);
+        this._paintPicker();
+        this.game.previewLook(this._pending());
+      } else if (id === 'plate-text') this.game.previewLook(this._pending());
+    });
     this.root.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'cheat-code') { e.preventDefault(); this.game.audio.start(); this._act('cheat'); } });
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
@@ -26,12 +45,18 @@ export class Menus {
     this.current = name;
     const html = name ? this['_' + name]() : '';
     this.root.innerHTML = html;
-    if (name === 'garage') this.game.previewBike(this.sel);
+    if (name === 'garage') { this.game.previewBike(this.sel); if (this.gtab === 'look' && this.game.save.owns(this.sel)) this.game.previewLook(this._pending()); }
     if (name === 'cheats' && this.game.device.type === 'desktop') { const i = this.root.querySelector('#cheat-code'); if (i) i.focus(); }
   }
 
   hide() { this.current = null; this.root.innerHTML = ''; }
-  refresh() { if (this.current) { const sc = this.root.querySelector('.scroll'); const top = sc ? sc.scrollTop : 0; this.show(this.current); const s2 = this.root.querySelector('.scroll'); if (s2) s2.scrollTop = top; } }
+  // re-render the current screen, keeping every scroll position
+  refresh() {
+    if (!this.current) return;
+    const tops = [...this.root.querySelectorAll('.scroll')].map((e) => e.scrollTop);
+    this.show(this.current);
+    this.root.querySelectorAll('.scroll').forEach((e, i) => { e.scrollTop = tops[i] || 0; });
+  }
 
   _act(a, v) {
     const g = this.game, au = g.audio, s = g.save;
@@ -41,11 +66,44 @@ export class Menus {
       case 'go': au.ui(); if (v === 'garage') { this.sel = s.data.bike; g.openGarage(); } this.show(v); break;
       case 'back': au.ui(); if (this.current === 'garage') g.closeGarage(); this.show(this.parent); break;
       case 'quit': au.ui(); g.toTitle(); break;
-      case 'sel': au.ui(); this.sel = v; this.show('garage'); break;
-      case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.show('garage'); break;
-      case 'use': au.ui(); g.selectBike(v); this.show('garage'); break;
-      case 'up': if (g.buyUpgrade(this.sel, v)) au.bank(false); else au.deny(); this.show('garage'); break;
-      case 'paint': au.ui(); g.setPaint(this.sel, +v); this.show('garage'); break;
+      case 'sel': au.ui(); this.sel = v; if (!s.owns(v)) this.gtab = 'bike'; this.refresh(); break;
+      case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.refresh(); break;
+      case 'use': au.ui(); g.selectBike(v); this.refresh(); break;
+      case 'gtab': au.ui(); this.gtab = v; this.refresh(); break;
+      case 'mod': {
+        const e = s.entry(this.sel), st = e ? modState(e, MOD_BY_ID[v]) : 'locked';
+        if (st === 'buy') { if (g.buyMod(this.sel, v)) au.bank(false); else au.deny(); }
+        else if (st === 'on' || st === 'off') { g.toggleMod(this.sel, v); au.ui(); }
+        else au.deny();
+        this.refresh(); break;
+      }
+      case 'susp': au.ui(); g.setSusp(this.sel, v); this.refresh(); break;
+      case 'target': au.ui(); this.target = v; this._syncPick(); this.refresh(); break;
+      case 'sw': { au.ui(); this._setColor(+v); this.refresh(); break; }
+      case 'pickwrap': au.ui(); this.pick.wrap = v || null; this.refresh(); break;
+      case 'pickled': au.ui(); this.pick.led = v; this.refresh(); break;
+      case 'pickflag': au.ui(); this.pick.flag = v || null; this.refresh(); break;
+      case 'apply': {
+        const t = this.target, id = this.sel;
+        let ok;
+        if (t === 'wrap') ok = g.buyWrap(id, this.pick.wrap, this.color);
+        else if (t === 'leds') ok = g.buyLeds(id, this.pick.led, this.color);
+        else if (t === 'flag') ok = g.buyFlag(id, this.pick.flag);
+        else if (t === 'plate') { const i = this.root.querySelector('#plate-text'); ok = g.buyPlate(id, i ? i.value : ''); }
+        else ok = g.buyPaint(id, t, this.color);
+        if (ok) au.bank(false); else au.deny();
+        this.refresh(); break;
+      }
+      case 'lookreset': {
+        const t = this.target, id = this.sel;
+        au.ui();
+        if (t === 'wrap') { this.pick.wrap = null; g.buyWrap(id, null); }
+        else if (t === 'leds') { this.pick.led = 'off'; if (s.entry(id).look.leds.owned) g.buyLeds(id, 'off', this.color); }
+        else if (t === 'flag') { this.pick.flag = null; g.buyFlag(id, null); }
+        else if (t === 'plate') g.buyPlate(id, '');
+        else g.buyPaint(id, t, null);
+        this.refresh(); break;
+      }
       case 'set': { au.ui(); const [k, val] = v.split(':'); g.applySetting(k, isNaN(+val) || val === '' ? val : +val); this.refresh(); break; }
       case 'wipe': if (this._wipe) { this._wipe = false; g.wipeSave(); } else { this._wipe = true; au.deny(); this.refresh(); setTimeout(() => { if (this._wipe) { this._wipe = false; if (this.current === 'settings') this.refresh(); } }, 4000); } break;
       case 'cheat': {
@@ -82,38 +140,155 @@ export class Menus {
   _title() { return this._menu('title'); }
   _pause() { return this._menu('pause'); }
 
+  // ---- garage helpers -----------------------------------------------------
+  _setColor(c) {
+    this.color = c;
+    const r = (c >> 16) / 255, g = ((c >> 8) & 255) / 255, b = (c & 255) / 255, mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+    let h = 0;
+    if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    this.hsv = [h / 6, mx ? d / mx : 0, mx];
+  }
+
+  // when a target is opened, start from what the bike has now
+  _syncPick() {
+    const e = this.game.save.entry(this.sel); if (!e) return;
+    const l = e.look, t = this.target;
+    if (t === 'wrap') { this.pick.wrap = l.wrap ? l.wrap.id : this.pick.wrap || 'galaxy'; if (l.wrap && l.wrap.color != null) this._setColor(l.wrap.color); }
+    else if (t === 'leds') { this.pick.led = l.leds.owned && l.leds.mode !== 'off' ? l.leds.mode : 'solid'; if (l.leds.owned) this._setColor(l.leds.color); }
+    else if (t === 'flag') this.pick.flag = l.flag.id || 'checkered';
+    else if (t !== 'plate' && t !== 'all' && l.colors[t] != null) this._setColor(l.colors[t]);
+  }
+
+  // the saved look with the unsaved choice on screen laid over it
+  _pending() {
+    const e = this.game.save.entry(this.sel) || newEntry(), look = lookOf(e), t = this.target;
+    const out = { colors: { ...look.colors }, wrap: look.wrap, leds: look.leds, flag: look.flag, plate: look.plate };
+    if (t === 'wrap') out.wrap = this.pick.wrap ? { id: this.pick.wrap, color: this.color } : null;
+    else if (t === 'leds') out.leds = { mode: this.pick.led, color: this.color };
+    else if (t === 'flag') out.flag = this.pick.flag;
+    else if (t === 'plate') { const i = this.root.querySelector('#plate-text'); out.plate = i ? i.value.toUpperCase().replace(/[^A-Z0-9 \-]/g, '').slice(0, 10) : look.plate; }
+    else if (t === 'all') { out.wrap = null; for (const p of PAINT_PARTS) out.colors[p.id] = this.color; }
+    else { out.colors[t] = this.color; if (t === 'frame' || t === 'plastics') out.wrap = null; }
+    return out;
+  }
+
+  _paintPicker() {
+    const sw = this.root.querySelector('#c-sw'), hx = this.root.querySelector('#c-hex');
+    if (sw) sw.style.background = hex(this.color);
+    if (hx) hx.textContent = hex(this.color).toUpperCase();
+    const sS = this.root.querySelector('#c-s'), sV = this.root.querySelector('#c-v');
+    if (sS) sS.style.background = `linear-gradient(90deg, ${hex(hsv(this.hsv[0], 0, this.hsv[2]))}, ${hex(hsv(this.hsv[0], 1, this.hsv[2]))})`;
+    if (sV) sV.style.background = `linear-gradient(90deg, #000, ${hex(hsv(this.hsv[0], this.hsv[1], 1))})`;
+  }
+
+  _picker() {
+    const [h, sa, v] = this.hsv;
+    return `<div class="picker">
+      <div class="prow"><span id="c-sw" class="csw" style="background:${hex(this.color)}"></span><span id="c-hex" class="chex">${hex(this.color).toUpperCase()}</span>
+        <div class="sws">${SWATCHES.map((c) => `<button data-a="sw" data-v="${c}" style="background:${hex(c)}" aria-label="colour"></button>`).join('')}</div></div>
+      <label>Hue<input id="c-h" class="rng hue" type="range" min="0" max="100" value="${Math.round(h * 100)}"></label>
+      <label>Colour<input id="c-s" class="rng" type="range" min="0" max="100" value="${Math.round(sa * 100)}" style="background:linear-gradient(90deg, ${hex(hsv(h, 0, v))}, ${hex(hsv(h, 1, v))})"></label>
+      <label>Bright<input id="c-v" class="rng" type="range" min="0" max="100" value="${Math.round(v * 100)}" style="background:linear-gradient(90deg, #000, ${hex(hsv(h, sa, 1))})"></label>
+    </div>`;
+  }
+
+  _perfTab(bike, entry) {
+    const s = this.game.save, st = perfStats(bike, entry), mph = s.data.settings.units === 'mph';
+    const sp = (v) => Math.round(v * (mph ? 2.237 : 3.6)), unit = mph ? 'MPH' : 'KM/H';
+    const fx = (m) => [m.top ? `${pct(m.top)} top speed` : '', m.launch ? `${pct(m.launch)} launch` : '', m.mass ? `${pct(m.mass)} weight` : '', m.brake ? `${pct(m.brake)} braking` : '', m.grip ? `${pct(m.grip)} grip` : ''].filter(Boolean).join(' · ');
+    const cards = MODS.map((m) => {
+      const state = modState(entry, m), price = modPrice(bike, m);
+      let btn;
+      if (state === 'on') btn = `<button class="mbtn off" data-a="mod" data-v="${m.id}">UNEQUIP</button>`;
+      else if (state === 'off') btn = `<button class="mbtn" data-a="mod" data-v="${m.id}">EQUIP</button>`;
+      else if (state === 'buy') btn = `<button class="mbtn" data-a="mod" data-v="${m.id}" ${s.cash < price ? 'disabled' : ''}>INSTALL · ${money(price)}</button>`;
+      else btn = `<button class="mbtn" disabled>NEEDS ${m.needs.filter((n) => !entry.mods[n]).map((n) => modName(bike, MOD_BY_ID[n]).toUpperCase()).join(' + ')}</button>`;
+      const tag = state === 'on' ? '<span class="tag2 on">EQUIPPED</span>' : state === 'off' ? '<span class="tag2">INSTALLED</span>' : `<span class="tag2 price">${money(price)}</span>`;
+      return `<div class="mod ${state}"><div class="mh"><span class="mn">${modName(bike, m)}</span>${tag}</div><div class="mi">${modInfo(bike, m)} · <b>${fx(m)}</b></div>${btn}</div>`;
+    }).join('');
+    const tunes = SUSP_TUNES.map((t) => `<button class="${(entry.susp || 'street') === t.id ? 'on' : ''}" data-a="susp" data-v="${t.id}">${t.name}</button>`).join('');
+    const tune = SUSP_TUNES.find((t) => t.id === (entry.susp || 'street'));
+    return `<div class="pstats">
+        <div><b>${sp(st.top)} ${unit}</b><span>TOP SPEED · STOCK ${sp(st.stockTop)}</span></div>
+        <div><b>${pct(st.launch)}</b><span>LAUNCH · VS STOCK</span></div>
+        <div><b>${st.weight.toFixed(1)} KG</b><span>WEIGHT · STOCK ${st.stockWeight.toFixed(1)}</span></div>
+      </div>
+      <div class="mod on"><div class="mh"><span class="mn">Suspension Tune</span><span class="tag2 on">${tune.name.toUpperCase()}</span></div><div class="mi">${tune.desc} · free to change</div><div class="seg wide">${tunes}</div></div>
+      ${cards}`;
+  }
+
+  _lookTab(bike, entry) {
+    const g = this.game, s = g.save, l = entry.look, t = this.target;
+    const slots = g.preview && g.previewId === bike.id ? g.preview.slots : PAINT_PARTS.map((p) => p.id);
+    const chip = (id, name, mark) => `<button class="chip ${t === id ? 'on' : ''} ${mark ? 'has' : ''}" data-a="target" data-v="${id}">${name}</button>`;
+    const parts = PAINT_PARTS.filter((p) => slots.includes(p.id));
+    if (t !== 'all' && !['wrap', 'leds', 'flag', 'plate'].includes(t) && !slots.includes(t)) this.target = 'all';
+    const paintChips = chip('all', 'Paint all') + parts.map((p) => chip(p.id, p.name, l.colors[p.id] != null)).join('');
+    const extraChips = chip('wrap', 'Wrap', !!l.wrap) + chip('leds', 'Wheel LEDs', l.leds.owned && l.leds.mode !== 'off') + chip('flag', 'Flag pole', !!l.flag.id) + chip('plate', 'Name plate', !!l.plate.text);
+    const can = (price) => s.cash >= price;
+    const buyBtn = (label, price) => `<button class="cta" data-a="apply" ${price && !can(price) ? 'disabled' : ''}>${price ? `${label} · ${money(price)}` : label}</button>`;
+    const resetBtn = (label) => `<button class="cta ghost small" data-a="lookreset">${label}</button>`;
+    let body;
+    const tt = this.target;
+    if (tt === 'wrap') {
+      const chips = `<button class="chip ${!this.pick.wrap ? 'on' : ''}" data-a="pickwrap" data-v="">None</button>` + WRAPS.map((w) => `<button class="chip ${this.pick.wrap === w.id ? 'on' : ''} ${l.wraps[w.id] ? 'has' : ''}" data-a="pickwrap" data-v="${w.id}">${w.name}</button>`).join('');
+      const owned = this.pick.wrap && l.wraps[this.pick.wrap];
+      body = `<div class="sec">Pattern — covers the frame and plastics</div><div class="chips">${chips}</div>${this.pick.wrap ? this._picker() : ''}
+        <div class="arow">${this.pick.wrap ? buyBtn(owned ? 'APPLY WRAP' : 'BUY WRAP', owned ? 0 : PRICES.wrap) : buyBtn('REMOVE WRAP', 0)}${l.wrap ? resetBtn('REMOVE') : ''}</div>`;
+    } else if (tt === 'leds') {
+      const chips = LED_MODES.map((m) => `<button class="chip ${this.pick.led === m.id ? 'on' : ''}" data-a="pickled" data-v="${m.id}">${m.name}</button>`).join('');
+      body = `<div class="sec">Glowing rings on both wheels</div><div class="chips">${chips}</div>${this.pick.led === 'solid' || this.pick.led === 'pulse' ? this._picker() : ''}
+        <div class="arow">${buyBtn(l.leds.owned ? 'APPLY' : 'BUY WHEEL LEDS', l.leds.owned ? 0 : PRICES.leds)}</div>`;
+    } else if (tt === 'flag') {
+      const chips = `<button class="chip ${!this.pick.flag ? 'on' : ''}" data-a="pickflag" data-v="">None</button>` + FLAGS.map((f) => `<button class="chip ${this.pick.flag === f.id ? 'on' : ''}" data-a="pickflag" data-v="${f.id}">${f.name}</button>`).join('');
+      body = `<div class="sec">A flag on a pole behind the seat</div><div class="chips">${chips}</div>
+        <div class="arow">${buyBtn(l.flag.owned || !this.pick.flag ? 'APPLY' : 'BUY FLAG POLE', l.flag.owned || !this.pick.flag ? 0 : PRICES.flag)}</div>`;
+    } else if (tt === 'plate') {
+      body = `<div class="sec">Your name on a plate at the back (10 letters)</div>
+        <div class="cheat"><input id="plate-text" type="text" maxlength="10" placeholder="YOUR NAME" value="${l.plate.text || ''}" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"></div>
+        <div class="arow">${buyBtn(l.plate.owned ? 'SAVE PLATE' : 'BUY NAME PLATE', l.plate.owned ? 0 : PRICES.plate)}${l.plate.text ? resetBtn('REMOVE') : ''}</div>`;
+    } else {
+      const all = tt === 'all', name = all ? 'the whole bike' : parts.find((p) => p.id === tt).name.toLowerCase();
+      const custom = all ? Object.keys(l.colors).length > 0 : l.colors[tt] != null;
+      body = `<div class="sec">Pick a colour for ${name}</div>${this._picker()}
+        <div class="arow">${buyBtn(all ? 'PAINT ALL' : 'APPLY', all ? PRICES.paintAll : PRICES.paint)}${custom ? resetBtn('STOCK') : ''}</div>
+        ${l.wrap && (all || tt === 'frame' || tt === 'plastics') ? '<div class="mi">The wrap covers frame and plastics paint. Remove the wrap to see it.</div>' : ''}`;
+    }
+    return `<div class="sec">Paint</div><div class="chips">${paintChips}</div><div class="sec">Extras</div><div class="chips">${extraChips}</div>${body}`;
+  }
+
   _garage() {
     const g = this.game, s = g.save, id = this.sel, bike = BIKE_BY_ID[id];
-    const owned = s.owns(id), entry = s.entry(id) || { up: {}, paint: 0 };
-    const spec = effectiveSpec(bike, entry.up), bars = statBars(spec);
+    const owned = s.owns(id), entry = s.entry(id) || newEntry();
+    if (!owned) this.gtab = 'bike';
+    const spec = effectiveSpec(bike, entry), bars = statBars(spec);
     const top = Math.round(spec.drive.topSpeed * (s.data.settings.units === 'mph' ? 2.237 : 3.6));
     const list = BIKES.map((b) => {
       const o = s.owns(b.id), riding = s.data.bike === b.id;
       return `<button class="bike ${b.id === id ? 'sel' : ''} ${riding ? 'riding' : ''} ${o ? '' : 'locked'}" data-a="sel" data-v="${b.id}">
         <div class="n">${b.name}</div><div class="p">${riding ? 'RIDING' : o ? 'OWNED' : money(b.price)}</div></button>`;
     }).join('');
-    const ups = upgradesFor(bike).map((u) => {
-      const lv = entry.up[u.id] || 0, maxed = lv >= UPGRADE_LEVELS, price = maxed ? 0 : upgradePrice(bike, lv + 1);
-      const pips = Array.from({ length: UPGRADE_LEVELS }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
-      return `<div class="up"><div><div class="un">${u.name}</div><div class="ud">${u.desc}</div></div><div class="pips">${pips}</div>
-        <button class="buy" data-a="up" data-v="${u.id}" ${maxed || !owned || s.cash < price ? 'disabled' : ''}>${maxed ? 'MAX' : money(price)}</button></div>`;
-    }).join('');
-    const paints = PAINTS.map((p, i) => `<button class="${i === (entry.paint || 0) ? 'sel' : ''} ${p.color === null ? 'stock' : ''}" title="${p.name}" data-a="paint" data-v="${i}" style="${p.color === null ? `background:${hex(bike.paint)}` : `background:${hex(p.color)}`}"></button>`).join('');
     const stat = (n, v) => `<div class="stat"><span>${n}</span><div class="bar"><b style="width:${Math.round(v * 100)}%"></b></div></div>`;
     let cta;
     if (!owned) cta = `<button class="cta" data-a="buy" data-v="${id}" ${s.cash < bike.price ? 'disabled' : ''}>${s.cash < bike.price ? `NEED ${money(bike.price - s.cash)} MORE` : `BUY — ${money(bike.price)}`}</button>`;
     else if (s.data.bike !== id) cta = `<button class="cta" data-a="use" data-v="${id}">RIDE THIS ONE</button>`;
     else cta = '<button class="cta ghost" data-a="back">YOUR RIDE — LET\'S GO</button>';
+    const tab = (k, n) => `<button class="${this.gtab === k ? 'on' : ''}" data-a="gtab" data-v="${k}" ${owned || k === 'bike' ? '' : 'disabled'}>${n}</button>`;
+    let body;
+    if (this.gtab === 'perf') body = this._perfTab(bike, entry);
+    else if (this.gtab === 'look') body = this._lookTab(bike, entry);
+    else body = `<div class="blurb">${bike.blurb}</div>
+          ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
+          ${cta}
+          ${owned ? '<div class="mi">Open <b>Performance</b> for mods and <b>Appearance</b> for paint, wraps, LEDs, a flag and a name plate.</div>' : '<div class="sec">Buy it to unlock mods and customisation</div>'}`;
     return `<div class="screen" id="garage">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">GARAGE</div><div class="cash">${money(s.cash)}</div></div>
       <div class="body">
         <div class="bikes scroll">${list}</div>
-        <div class="detail scroll">
+        <div class="detail">
           <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
-          <div class="blurb">${bike.blurb}</div>
-          ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
-          ${cta}
-          ${owned ? `<div class="sec">Upgrades</div>${ups}<div class="sec">Paint</div><div class="paints">${paints}</div>` : '<div class="sec">Buy it to unlock upgrades and paint</div>'}
+          <div class="gtabs">${tab('bike', 'BIKE')}${tab('perf', 'PERFORMANCE')}${tab('look', 'APPEARANCE')}</div>
+          <div class="scroll gbody">${body}</div>
         </div>
       </div></div>`;
   }

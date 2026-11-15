@@ -4,35 +4,69 @@
 
 export const RIDER_MASS = 70;
 
-const PEDAL_UPGRADES = [
-  { id: 'battery', name: 'Gearing', desc: 'Taller gearing for more top speed' },
-  { id: 'controller', name: 'Cranks', desc: 'Stiffer cranks put down more power' },
-  { id: 'sprocket', name: 'Sprocket', desc: 'Snappier launches and easier lifts' },
-  { id: 'tires', name: 'Tires', desc: 'More grip and stronger braking' },
+// ---- performance mods ------------------------------------------------------------
+// top / launch / mass / brake / grip are fractions added to the stock value.
+// cost is a multiple of the bike's upgradeBase. needs = mods that must be installed
+// first. group = only one of the group can be equipped at a time.
+export const MODS = [
+  { id: 'battery2', name: 'Battery Stage 2', pedal: 'Race Gearing', info: '52V → 60V', pinfo: 'Taller gears', top: 0.1, launch: 0.08, cost: 6 },
+  { id: 'battery3', name: 'Battery Stage 3', pedal: 'Pro Gearing', info: '60V → 72V', pinfo: 'Even taller gears', top: 0.08, launch: 0.04, cost: 9, needs: ['battery2', 'brakes'] },
+  { id: 'controller', name: 'Performance Controller', pedal: 'Stiff Cranks', info: 'More amps to the motor', pinfo: 'Nothing wasted in flex', top: 0.06, launch: 0.18, cost: 5 },
+  { id: 'tune', name: 'High-Current Tune', pedal: 'Clipless Pedals', info: 'Controller pushed harder', pinfo: 'Pull up as well as push', top: 0.04, launch: 0.08, cost: 2.5, needs: ['controller'] },
+  { id: 'sprocket', name: 'Big Rear Sprocket', info: 'Shorter gearing', top: -0.04, launch: 0.12, cost: 1.5 },
+  { id: 'weight', name: 'Weight Reduction', info: 'Lighter parts everywhere', mass: -0.1, cost: 4 },
+  { id: 'brakes', name: 'Brake Upgrade', info: 'Bigger discs and pads', brake: 0.25, cost: 1.5 },
+  { id: 'tyresSport', name: 'Sport Tyres', info: 'Stickier compound', grip: 0.06, brake: 0.05, cost: 1.2, group: 'tyres' },
+  { id: 'tyresRace', name: 'Race Tyres', info: 'Maximum grip', grip: 0.12, brake: 0.1, cost: 2.5, group: 'tyres' },
 ];
-const ELECTRIC_UPGRADES = [
-  { id: 'battery', name: 'Battery', desc: 'Higher voltage pack for more top speed' },
-  { id: 'controller', name: 'Controller', desc: 'More amps, more power everywhere' },
-  { id: 'sprocket', name: 'Sprocket', desc: 'Bigger rear sprocket for brutal torque' },
-  { id: 'tires', name: 'Tires', desc: 'More grip and stronger braking' },
+export const MOD_BY_ID = Object.fromEntries(MODS.map((m) => [m.id, m]));
+
+// suspension tunes are free: springs and damping multipliers
+export const SUSP_TUNES = [
+  { id: 'soft', name: 'Trail', desc: 'Soft and plush', k: 0.78, c: 0.9 },
+  { id: 'street', name: 'Street', desc: 'As built', k: 1, c: 1 },
+  { id: 'stiff', name: 'Race', desc: 'Stiff and sharp', k: 1.4, c: 1.3 },
 ];
 
-export const UPGRADE_LEVELS = 3;
-
-export const PAINTS = [
-  { name: 'Stock', color: null },
-  { name: 'Midnight', color: 0x15171c },
-  { name: 'Chalk', color: 0xe8e6df },
-  { name: 'Signal Red', color: 0xd42a2a },
-  { name: 'Volt', color: 0xb4e61e },
-  { name: 'Electric Blue', color: 0x1c6cf2 },
-  { name: 'Sunset', color: 0xf07a1a },
-  { name: 'Grape', color: 0x7a3fd1 },
-  { name: 'Mint', color: 0x3fd1a4 },
-  { name: 'Hot Pink', color: 0xf0388c },
-  { name: 'Gold', color: 0xd4a52a },
-  { name: 'Army', color: 0x5d6b3c },
+// ---- appearance ---------------------------------------------------------------------
+export const PAINT_PARTS = [
+  { id: 'frame', name: 'Frame' }, { id: 'plastics', name: 'Plastics' }, { id: 'seat', name: 'Seat' }, { id: 'fork', name: 'Fork' },
+  { id: 'swingarm', name: 'Swingarm' }, { id: 'bars', name: 'Bars' }, { id: 'grips', name: 'Grips' }, { id: 'rims', name: 'Rims' }, { id: 'shock', name: 'Shock' },
 ];
+export const WRAPS = [
+  { id: 'galaxy', name: 'Galaxy' }, { id: 'camo', name: 'Camo' }, { id: 'flames', name: 'Flames' }, { id: 'stripes', name: 'Stripes' },
+  { id: 'carbon', name: 'Carbon' }, { id: 'checker', name: 'Checker' }, { id: 'tiger', name: 'Tiger' },
+];
+export const LED_MODES = [{ id: 'off', name: 'Off' }, { id: 'solid', name: 'Solid' }, { id: 'pulse', name: 'Pulse' }, { id: 'rainbow', name: 'Rainbow' }];
+export const FLAGS = [{ id: 'checkered', name: 'Checkered' }, { id: 'stripes', name: 'Stripes' }, { id: 'flames', name: 'Flames' }, { id: 'ww', name: 'Wheelie Works' }];
+export const PRICES = { paint: 100, paintAll: 400, wrap: 1500, leds: 2000, flag: 1000, plate: 500 };
+
+export const newEntry = () => ({ mods: {}, susp: 'street', look: { colors: {}, wrap: null, wraps: {}, leds: { owned: false, mode: 'off', color: 0x2f7bff }, flag: { owned: false, id: null }, plate: { owned: false, text: '' } } });
+
+// bring an older save entry ({ up, paint }) up to the current shape
+export function upgradeEntry(e) {
+  const n = newEntry();
+  if (!e) return n;
+  if (e.mods) {
+    n.mods = { ...e.mods }; n.susp = e.susp || 'street';
+    const l = e.look || {};
+    n.look = { colors: { ...(l.colors || {}) }, wrap: l.wrap || null, wraps: { ...(l.wraps || {}) }, leds: { ...n.look.leds, ...(l.leds || {}) }, flag: { ...n.look.flag, ...(l.flag || {}) }, plate: { ...n.look.plate, ...(l.plate || {}) } };
+    return n;
+  }
+  const up = e.up || {};
+  if (up.battery >= 1) n.mods.battery2 = 2;
+  if (up.controller >= 1) n.mods.controller = 2;
+  if (up.controller >= 2) n.mods.tune = 2;
+  if (up.sprocket >= 1) n.mods.sprocket = 2;
+  if (up.tires >= 2) n.mods.tyresRace = 2; else if (up.tires >= 1) n.mods.tyresSport = 2;
+  return n;
+}
+
+// what the model needs to draw this entry
+export function lookOf(entry) {
+  const l = (entry && entry.look) || {};
+  return { colors: l.colors || {}, wrap: l.wrap || null, leds: l.leds && l.leds.owned ? { mode: l.leds.mode, color: l.leds.color } : null, flag: l.flag && l.flag.owned ? l.flag.id : null, plate: l.plate && l.plate.owned ? l.plate.text : '' };
+}
 
 export const BIKES = [
   {
@@ -143,31 +177,68 @@ export const BIKES = [
 
 export const BIKE_BY_ID = Object.fromEntries(BIKES.map((b) => [b.id, b]));
 
-export function upgradesFor(bike) {
-  return bike.cls === 'pedal' ? PEDAL_UPGRADES : ELECTRIC_UPGRADES;
+export const modName = (bike, m) => (bike.cls === 'pedal' && m.pedal ? m.pedal : m.name);
+export const modInfo = (bike, m) => (bike.cls === 'pedal' && m.pinfo ? m.pinfo : m.info);
+export const modPrice = (bike, m) => Math.round((bike.upgradeBase * m.cost) / 10) * 10;
+
+// 'locked' (missing a prerequisite), 'buy', 'off' (installed, not fitted) or 'on'
+export function modState(entry, m) {
+  const v = (entry.mods || {})[m.id] || 0;
+  if (v === 2) return 'on';
+  if (v === 1) return 'off';
+  return (m.needs || []).every((n) => (entry.mods || {})[n]) ? 'buy' : 'locked';
 }
 
-export function upgradePrice(bike, level) {
-  // level = the level being bought (1..3)
-  return Math.round((bike.upgradeBase * [1, 2.2, 4][level - 1]) / 10) * 10;
+// fit or remove an installed mod, keeping prerequisites and one-per-group rules
+export function setModEquipped(entry, id, on) {
+  const mods = entry.mods, m = MOD_BY_ID[id];
+  if (!mods[id]) return;
+  if (on) {
+    for (const n of m.needs || []) if (mods[n]) mods[n] = 2;
+    if (m.group) for (const o of MODS) if (o.group === m.group && o.id !== id && mods[o.id]) mods[o.id] = 1;
+    mods[id] = 2;
+  } else {
+    mods[id] = 1;
+    for (const o of MODS) if ((o.needs || []).includes(id) && mods[o.id] === 2) setModEquipped(entry, o.id, false);
+  }
 }
 
-// Resolve a catalogue entry plus upgrade levels into the numbers the physics uses.
-export function effectiveSpec(bike, up = {}) {
-  const b = up.battery || 0, c = up.controller || 0, s = up.sprocket || 0, t = up.tires || 0;
-  const mass = bike.mass + RIDER_MASS;
+// Resolve a catalogue entry plus the owner's mods into the numbers the physics uses.
+export function effectiveSpec(bike, entry) {
+  const mods = (entry && entry.mods) || {};
+  let top = 1, launch = 1, mass = 1, brake = 1, grip = 1;
+  for (const m of MODS) {
+    if (mods[m.id] !== 2) continue;
+    top += m.top || 0; launch += m.launch || 0; mass += m.mass || 0; brake += m.brake || 0; grip += m.grip || 0;
+  }
+  const tune = SUSP_TUNES.find((t) => t.id === ((entry && entry.susp) || 'street')) || SUSP_TUNES[1];
+  const bikeMass = bike.mass * mass, total = bikeMass + RIDER_MASS, su = bike.susp;
   return {
     ...bike,
-    totalMass: mass,
-    inertia: mass * bike.gyr * bike.gyr,
+    mass: bikeMass,
+    totalMass: total,
+    inertia: total * bike.gyr * bike.gyr,
     drive: {
       type: bike.drive.type,
-      maxForce: bike.drive.maxForce * (1 + 0.07 * c + 0.1 * s),
-      power: bike.drive.power * (1 + 0.14 * c + 0.07 * b),
-      topSpeed: bike.drive.topSpeed * (1 + 0.075 * b - 0.012 * s),
+      maxForce: bike.drive.maxForce * launch,
+      // drag grows with the cube of speed, so top-end mods need a lot more power
+      power: bike.drive.power * launch * Math.pow(top, 2.6),
+      topSpeed: bike.drive.topSpeed * top,
     },
-    grip: bike.grip * (1 + 0.05 * t),
-    brake: bike.brake * (1 + 0.07 * t),
+    grip: bike.grip * grip,
+    brake: bike.brake * brake,
+    susp: { kF: su.kF * tune.k, cF: su.cF * tune.c, tF: su.tF, kR: su.kR * tune.k, cR: su.cR * tune.c, tR: su.tR },
+  };
+}
+
+// headline numbers for the garage: top speed (m/s), launch vs stock, weight (kg)
+export function perfStats(bike, entry) {
+  const stock = effectiveSpec(bike, null), now = effectiveSpec(bike, entry);
+  return {
+    top: now.drive.topSpeed, stockTop: stock.drive.topSpeed,
+    launch: now.drive.maxForce / now.totalMass / (stock.drive.maxForce / stock.totalMass) - 1,
+    weight: now.mass, stockWeight: stock.mass,
+    brake: now.brake / stock.brake - 1, grip: now.grip / stock.grip - 1,
   };
 }
 

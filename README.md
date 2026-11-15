@@ -70,8 +70,12 @@ wall? Hold brake to paddle backwards.
 - **Cops** — patrols notice wheelies, speeding and e-motos. Five heat levels escalate from
   one cruiser to backup, roadblocks, bike cops that follow you through alleys, and a
   helicopter. Break line of sight and stay hidden to escape for a payout.
-- **Progression** — cash from combos, escapes and 21 challenges buys bikes, four upgrade
-  tracks per bike and paint. Progress saves in the browser.
+- **Progression** — cash from combos, escapes and 21 challenges buys bikes and
+  customisation. Progress saves in the browser.
+- **Garage** — a *Performance* tab with installable mods that build on each other
+  (battery stages, controller, high-current tune, sprocket, weight reduction, brakes,
+  tyres) plus a free suspension tune, and an *Appearance* tab with per-part paint from a
+  colour picker, wraps, wheel LEDs, a flag pole and a name plate.
 - **Day, golden hour and night**, four camera modes, synthesised audio.
 
 ## Code map
@@ -80,7 +84,7 @@ wall? Hold brake to paddle backwards.
 | --- | --- |
 | `src/main.js` | Game states and the main loop |
 | `src/physics.js` | Bike dynamics, collisions, crashes |
-| `src/bikes.js` | Bike specs, prices, upgrades, paint — tune the game here |
+| `src/bikes.js` | Bike specs, prices, mods and the customisation catalogue — tune the game here |
 | `src/bikeModel.js`, `src/rider.js` | Procedural bike meshes; IK-posed rider and ragdoll |
 | `src/world/` | City generator, terrain/colliders, sky and lighting |
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
