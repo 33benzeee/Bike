@@ -123,8 +123,8 @@ class Game {
       this.respawn(true);
     };
     this.input.onMode = () => { this._updateControlsMode(); if (this.menus.current === 'title' || this.menus.current === 'pause' || this.menus.current === 'controls') this.menus.refresh(); };
-    document.getElementById('btn-cam').addEventListener('click', () => this.input.press('camera'));
-    document.getElementById('btn-pause').addEventListener('click', () => this.input.press('pause'));
+    document.getElementById('btn-cam').addEventListener('click', (e) => { this.input.press('camera'); e.currentTarget.blur(); });
+    document.getElementById('btn-pause').addEventListener('click', (e) => { this.input.press('pause'); e.currentTarget.blur(); });
     this.renderer.domElement.addEventListener('pointerdown', () => this.audio.start());
     document.getElementById('rotate-skip').addEventListener('click', () => { document.body.classList.add('portrait-ok'); this.resize(); });
   }
@@ -149,7 +149,7 @@ class Game {
   specOf(id) { const e = this.save.entry(id); return effectiveSpec(BIKE_BY_ID[id], e ? e.up : {}); }
 
   setBike(id, keepPos) {
-    const old = this.phys, x = old.x, z = old.z, yaw = old.yaw;
+    const old = this.phys, at = this.foot || old, x = at.x, z = at.z, yaw = at.yaw;
     if (this.model) { this.rider.endRagdoll(this.model.group); this.scene.remove(this.model.group); this.model.group.remove(this.rider.group); this.model.dispose(); }
     const spec = this.specOf(id);
     this.model = buildBike(spec, this.paintOf(id));
@@ -158,8 +158,8 @@ class Game {
     const h = this.city.spots.home;
     if (keepPos) this.phys.reset(x, z, yaw); else this.phys.reset(h.x, h.z, h.yaw);
     this.rig.snap = true; this.safe.length = 0;
-    this.burnout = false; this.foot = null; this.nearBike = false; document.body.classList.remove('onfoot');
-    this._tricksOff();
+    this.burnout = false;
+    this._footUI(false); this._tricksOff();
     const bp = document.getElementById('burn'); if (bp) { bp.classList.add('hidden'); document.getElementById('t-burn').classList.remove('on'); }
   }
 
@@ -297,8 +297,9 @@ class Game {
       if (this.input.take('pause') || this.input.take('confirm')) { if (this.state === 'pause') this.resume(); else if (this.state === 'title' && this.menus.current === 'title') this.startRide(); }
       this.input.queue.length = 0;
       if (this.state !== 'pause') {
-        this.inp.throttle = 0; this.inp.brake = 1; this.inp.steer = 0; this.inp.lean = 0; this.inp.hop = false;
+        this.inp.throttle = 0; this.inp.brake = 0.4; this.inp.steer = 0; this.inp.lean = 0; this.inp.hop = false; this.inp.stoppie = false; this.inp.burnout = false;
         p.step(dt, this.inp, null); p.events.length = 0;
+        if (!p.crashed && Math.abs(p.speed) < 0.4) { p.vx = 0; p.vz = 0; }
         this.traffic.update(dt, p, null);
         this._visual(dt, { one: false, no: false, stand: false, drag: false });
       }
@@ -374,6 +375,7 @@ class Game {
       if (spec.drive.type === 'pedal') inp.throttle = 0;
       inp.hop = false;
     }
+    if (s.hop && !inp.hop) { p._hopHeld = false; p.hopCharge = 0; }
     inp.burnout = !!this.burnout && w.no < 0.5;
     // the stoppie button is the front brake on its own: on the ground it lifts the
     // tail, in a wheelie it only stops the front wheel spinning
@@ -491,11 +493,12 @@ class Game {
 
   // ---- on foot ---------------------------------------------------------------
   _footUI(on) {
+    const was = document.body.classList.contains('onfoot');
     if (!on) { this.foot = null; this.nearBike = false; }
     document.body.classList.toggle('onfoot', on);
     document.getElementById('t-reset').textContent = on ? 'CALL BIKE' : 'RESET';
     document.getElementById('t-mount').classList.add('hidden');
-    if (!on) this.hud.hintEl.classList.remove('show');
+    if (!on && was) this.hud.hintEl.classList.remove('show'); // only clear our own walking hints
   }
 
   // the tumble is over: stand up where you landed

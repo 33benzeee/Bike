@@ -35,12 +35,17 @@ export class TouchControls {
       pid = null; t.steer = 0; t.lean = 0; knob.style.transform = '';
       stick.style.left = home.left; stick.style.top = home.top; stick.style.bottom = home.bottom;
     };
-    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
+    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end); zone.addEventListener('lostpointercapture', end);
+    // switching apps mid-press must not leave controls held
+    const releaseAll = () => { pid = null; knob.style.transform = ''; if (home) { stick.style.left = home.left; stick.style.top = home.top; stick.style.bottom = home.bottom; } t.throttle = t.brake = t.steer = t.lean = 0; t.hop = false; t.pull = false; t.stoppie = false; t.tricks.fill(false); for (const b of this.el.querySelectorAll('button.on')) b.classList.remove('on'); };
+    window.addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
     const hold = (el, on, off) => {
       const down = (e) => { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } el.classList.add('on'); on(e); e.preventDefault(); };
       const up = () => { el.classList.remove('on'); off(); };
       el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+      // never leave a button stuck down if the finger slides off or the touch is stolen
+      el.addEventListener('lostpointercapture', up); el.addEventListener('pointerleave', up);
       el.addEventListener('contextmenu', (e) => e.preventDefault());
     };
     const gas = $('t-gas');

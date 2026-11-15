@@ -72,7 +72,7 @@ export class Rider {
     this.w = { one: 0, no: 0, stand: 0, drag: 0, stop: 0, air: 0 };
     this.hip = V(); this.torsoPitch = 0.3; this.t = 0; this.crankA = 0;
     this.firstPerson = false;
-    this.ragdoll = false;
+    this.ragdoll = false; this.walking = false;
     this._gl = V(); this._gr = V(); this._foot = V();
   }
 
