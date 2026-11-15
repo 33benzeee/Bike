@@ -86,7 +86,7 @@ export class BikePhysics {
     this.steer += (inp.steer - this.steer) * (1 - Math.exp(-dt * sr));
     const tr = sp.drive.type === 'pedal' ? 6 : 7;
     this.throttle += clamp(inp.throttle - this.throttle, -dt * 25, dt * tr);
-    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 5.5);
+    this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 11);
     this.comShift += clamp(inp.lean - this.comShift, -dt * 5.5, dt * 5.5);
 
     // a fresh tug on the bars / shove forward gives a short torque impulse
@@ -252,7 +252,7 @@ export class BikePhysics {
         const Fd = Math.min(this._drive(th, vt), driveCap);
         // in a wheelie the rear brake is a fine tool: cap how hard it can snap the front down
         let bMax = sp.brake * 0.56 * m * G;
-        if (!this.frontContact) { const xw = cx * ct - cy * st; bMax = Math.min(bMax, (12 * (I + m * xw * xw)) / (cx * st + cy * ct + r)); }
+        if (!this.frontContact) { const xw = cx * ct - cy * st; bMax = Math.min(bMax, (9 * (I + m * xw * xw)) / (cx * st + cy * ct + r)); }
         const Fb = bR > 0 ? -Math.sign(vt) * Math.min(bR * bMax, (Math.abs(vt) * m * 0.5) / h) : 0;
         const coast = th < 0.05 ? (sp.drive.type === 'pedal' ? 0 : 0.02 * m * G) : 0;
         const roll = -Math.tanh(vt * 4) * (SURF_ROLL[wc.surface] * Fn + coast);
