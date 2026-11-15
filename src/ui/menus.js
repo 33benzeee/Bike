@@ -166,7 +166,7 @@ export class Menus {
       <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Brake — in a wheelie this is your rear brake: tap it to bring the front down</span>
       <span><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></span><span>Steer</span>
       <span><kbd>Shift</kbd> / <kbd>Q</kbd></span><span>Lean back — pull up into a wheelie</span>
-      <span><kbd>X</kbd></span><span>Stoppie — hold it to brake onto the front wheel and lift the tail. Normal braking with <kbd>S</kbd> never tips you over the bars.</span>
+      <span><kbd>X</kbd></span><span>Front brake / stoppie — hold it on the ground to lift the tail. In a wheelie it only stops the front wheel, it doesn't bring the bike down. Normal braking with <kbd>S</kbd> never tips you over the bars.</span>
       <span><kbd>E</kbd></span><span>Lean forward — keeps a powerful bike's front down, rotates you forwards in the air</span>
       <span><kbd>Space</kbd></span><span>Bunny hop (hold to crouch, release to pop)</span>
       <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>One-hander, no-hander, seat stander, foot drag (also <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>) — hold during a wheelie or in the air</span>
@@ -181,7 +181,7 @@ export class Menus {
       <span class="k"><b>GAS</b></span><span>Throttle — slide your thumb up the pedal for more.</span>
       <span class="k"><b>BRAKE</b></span><span>Brake. In a wheelie it's the rear brake that saves you from looping out.</span>
       <span class="k"><b>WHEELIE</b></span><span>Pulls the front wheel up. Hold GAS, press it, then balance with GAS and BRAKE. (Pulling the stick down does the same.)</span>
-      <span class="k"><b>STOPPIE</b></span><span>Hold it to brake onto the front wheel and lift the tail. BRAKE on its own never tips you over the bars.</span>
+      <span class="k"><b>STOPPIE</b></span><span>The front brake on its own. Hold it on the ground to lift the tail into a stoppie. In a wheelie it only stops the front wheel — use BRAKE to bring the bike down. BRAKE on its own never tips you over the bars.</span>
       <span class="k"><b>HOP</b></span><span>Hold to crouch, release to bunny hop.</span>
       <span class="k"><b>Trick buttons</b></span><span>Hold during a wheelie or in the air.</span>
       <span class="k"><b>BURNOUT</b></span><span>Switch burnout mode on or off. With it on, hold GAS to smoke the rear tyre and steer to spin (motor bikes only).</span>

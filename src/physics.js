@@ -58,7 +58,7 @@ export class BikePhysics {
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
     this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
-    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
+    this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
     this.events.length = 0;
   }
@@ -87,6 +87,8 @@ export class BikePhysics {
     const tr = sp.drive.type === 'pedal' ? 6 : 7;
     this.throttle += clamp(inp.throttle - this.throttle, -dt * 25, dt * tr);
     this.brakeIn += clamp(inp.brake - this.brakeIn, -dt * 20, dt * 11);
+    // the stoppie button is a front-brake lever of its own
+    this.frontIn += clamp((inp.stoppie ? 1 : 0) - this.frontIn, -dt * 20, dt * 11);
     this.comShift += clamp(inp.lean - this.comShift, -dt * 5.5, dt * 5.5);
 
     // a fresh tug on the bars / shove forward gives a short torque impulse
@@ -153,6 +155,7 @@ export class BikePhysics {
     const burn = !!inp.burnout && sp.drive.type === 'electric' && this.frontContact && this.rearContact && Math.abs(u) < 4.5 && th > 0.05;
     this.burning = burn;
     if (!this.frontContact) { bF = 0; bR = br; } else { bF = br; bR = br * 0.6; }
+    if (this.frontContact && this.frontIn > bF) bF = this.frontIn; // front lever: front wheel only, never the rear
     if (burn) { bF = 1; bR = 0; }
     this.assistBrake = 0;
     // Rider "wrist" layer. 0 = raw sim, 1 = shaped throttle, 2 = shaped + auto balance.
@@ -321,7 +324,7 @@ export class BikePhysics {
         this.frontPen = pen; this.frontFn = Fn;
         if (!rearC) this.surface = wc.surface;
         this.spinF = this.frontLocked ? 0 : vt / r;
-      } else { this.frontPen = 0; this.frontFn = 0; this.spinF *= 1 - 0.15 * h; }
+      } else { this.frontPen = 0; this.frontFn = 0; this.spinF *= 1 - (this.frontIn > 0.3 ? Math.min(1, 14 * h) : 0.15 * h); } // in the air the lever just stops the wheel
     }
     this.rearContact = rearC; this.frontContact = frontC;
     const any = rearC || frontC;
