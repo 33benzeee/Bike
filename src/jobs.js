@@ -204,10 +204,10 @@ export class Jobs {
   // ---- map ------------------------------------------------------------------
   _pois() {
     const ex = this.g.hud.extra, hex = (c) => '#' + c.toString(16).padStart(6, '0');
-    ex.pois = this.mode ? [] : this.stations.map((s) => ({ x: s.x, z: s.z, color: hex(s.kind === 'food' ? ORANGE : s.def.wheelie ? PINK : BLUE), letter: s.kind === 'food' ? 'D' : s.def.wheelie ? 'W' : 'R' }));
+    ex.pois = this.mode ? [] : this.stations.map((s) => ({ x: s.x, z: s.z, color: hex(s.kind === 'food' ? ORANGE : s.def.wheelie ? PINK : BLUE), letter: s.kind === 'food' ? 'D' : s.def.wheelie ? 'W' : 'R', name: s.def.name }));
     // the SPROCKETS code puts the ones you still need on the map
     const sv = this.g.save.data.season;
-    if (sv.reveal) for (const k of this.tokens) if (!sv.found[k.i]) ex.pois.push({ x: k.x, z: k.z, color: this.season.css, letter: 'S' });
+    if (sv.reveal) for (const k of this.tokens) if (!sv.found[k.i]) ex.pois.push({ x: k.x, z: k.z, color: this.season.css, letter: 'S', name: `a ${this.season.item}` });
     const lg = document.getElementById('lg-sprk'); if (lg) lg.classList.toggle('hidden', !sv.reveal);
     for (const s of this.stations) s.m.visible = !this.mode;
   }

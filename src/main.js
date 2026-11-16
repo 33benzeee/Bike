@@ -381,6 +381,9 @@ class Game {
     if (this.state !== 'play') return;
     this.state = 'map'; this.input.enabled = false; this.touch.show(false);
     document.getElementById('mapscreen').classList.remove('hidden');
+    const note = document.querySelector('#mapscreen .maptitle small');
+    if (!this._mapNote) this._mapNote = note.textContent;
+    note.textContent = this._mapNote;
     this._drawMap();
   }
   closeMap() { document.getElementById('mapscreen').classList.add('hidden'); this.resume(); }
@@ -392,9 +395,24 @@ class Game {
   mapTap(cx, cy) {
     const w = this.hud.bigMapToWorld(cx, cy);
     if (!w) return;
-    const near = this.waypoints.findIndex((q) => Math.hypot(q.x - w.x, q.z - w.z) < 22);
-    if (near >= 0) this.waypoints.splice(near, 1);
-    else { if (this.waypoints.length >= 6) this.waypoints.shift(); this.waypoints.push(w); }
+    // a tap on a marker (shop, job, race, sprocket) puts the waypoint exactly on it
+    const big = this.hud._big, sp = this.city.spots, ex = this.hud.extra;
+    const reach = (22 * Math.max(1, document.getElementById('bigmap').width / 700)) / big.sc; // a bit more than the badge, in metres
+    const marks = [{ x: sp.dealer.x, z: sp.dealer.z, name: 'Dealership' }, { x: sp.customs.x, z: sp.customs.z, name: 'Customs' }, ...ex.pois];
+    if (ex.target) marks.push({ x: ex.target.x, z: ex.target.z, name: 'your job target' });
+    let hit = null, best = reach;
+    for (const m of marks) { const d = Math.hypot(m.x - w.x, m.z - w.z); if (d < best) { best = d; hit = m; } }
+    const note = document.querySelector('#mapscreen .maptitle small');
+    if (hit) {
+      const at = this.waypoints.findIndex((q) => Math.hypot(q.x - hit.x, q.z - hit.z) < 1);
+      if (at >= 0) { this.waypoints.splice(at, 1); note.textContent = `waypoint removed from ${hit.name}`; }
+      else { if (this.waypoints.length >= 6) this.waypoints.shift(); this.waypoints.push({ x: hit.x, z: hit.z, r: 4.5 }); note.textContent = `waypoint set on ${hit.name}`; }
+    } else {
+      const near = this.waypoints.findIndex((q) => Math.hypot(q.x - w.x, q.z - w.z) < 22);
+      if (near >= 0) this.waypoints.splice(near, 1);
+      else { if (this.waypoints.length >= 6) this.waypoints.shift(); this.waypoints.push(w); }
+      note.textContent = this._mapNote;
+    }
     this.audio.ui(); this._syncBeacons(); this._drawMap();
   }
   clearWaypoints() { this.waypoints.length = 0; this._syncBeacons(); this._drawMap(); }
@@ -685,7 +703,7 @@ class Game {
     // waypoints: distance readout, and tick them off on arrival
     if (this.waypoints.length) {
       const w = this.waypoints[0], d = Math.hypot(pp.x - w.x, pp.z - w.z), el = document.getElementById('wpd');
-      if (d < 9) { this.waypoints.shift(); this._syncBeacons(); this.hud.popup('WAYPOINT REACHED', 0); this.audio.trick(); }
+      if (d < (w.r || 9)) { this.waypoints.shift(); this._syncBeacons(); this.hud.popup('WAYPOINT REACHED', 0); this.audio.trick(); }
       else { const txt = `WAYPOINT ${Math.round(this.save.data.settings.units === 'mph' ? d * 3.281 : d)} ${this.save.data.settings.units === 'mph' ? 'FT' : 'M'}`; if (el.textContent !== txt) el.textContent = txt; el.classList.remove('hidden'); }
       for (const b of this.beacons) if (b.visible) b.material.opacity = 0.26 + Math.sin(t * 4) * 0.08;
     }
