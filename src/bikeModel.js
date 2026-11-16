@@ -21,7 +21,7 @@ const SLOTS = { frame: [0.45, 0.38], plastics: [0.25, 0.45], seat: [0.05, 0.85],
 
 // ---- wrap + flag textures (drawn once, monochrome so any tint works) -----------
 const texCache = {};
-function wrapTexture(id) {
+export function wrapTexture(id) {
   if (texCache[id]) return texCache[id];
   const R = (a, b) => a + Math.random() * (b - a);
   const t = canvasTexture(256, (c, s) => {

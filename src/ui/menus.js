@@ -1,6 +1,7 @@
 // Title, pause, garage, settings, challenges and controls screens.
 import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
+import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND } from '../helmets.js';
 import { TIMES } from '../world/sky.js';
 import { CAM_MODES } from '../camera.js';
 import { DEVICE_LABEL } from '../device.js';
@@ -46,7 +47,11 @@ export class Menus {
     const html = name ? this['_' + name]() : '';
     this.root.innerHTML = html;
     if (name === 'dealer') this.game.previewBike(this.sel);
-    if (name === 'customs') { this.sel = this.game.save.data.bike; this.game.previewBike(this.sel); if (this.gtab === 'look') this.game.previewLook(this._pending()); }
+    if (name === 'customs') {
+      this.sel = this.game.save.data.bike; this.game.previewBike(this.sel);
+      if (this.gtab === 'look') this.game.previewLook(this._pending());
+      this.game.previewHelmet(this.gtab === 'helm' ? this.helmSel || this.game.save.data.helmets.on : null);
+    }
     if (name === 'cheats' && this.game.device.type === 'desktop') { const i = this.root.querySelector('#cheat-code'); if (i) i.focus(); }
   }
 
@@ -71,6 +76,31 @@ export class Menus {
       case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.refresh(); break;
       case 'use': au.ui(); g.selectBike(v); this.refresh(); break;
       case 'gtab': au.ui(); this.gtab = v; this.refresh(); break;
+      case 'helm': au.ui(); this.helmSel = v; g.equipHelmet(v); this.refresh(); break;
+      case 'case': {
+        if (this._spinning) break;
+        const res = g.openCase();
+        if (!res) { au.deny(); break; }
+        this._case = res; this._spinning = true; this.refresh();
+        // the result is already saved; this is just the drum roll
+        const t0 = performance.now();
+        const spin = () => {
+          const el = this.root.querySelector('#reel'), e = (performance.now() - t0) / 2300;
+          if (el && this._case === res && e < 1) {
+            const h = HELMETS[Math.floor(Math.random() * HELMETS.length)];
+            el.textContent = h.rarity === 'ghost' ? '? ? ?' : h.name; el.style.color = RARITY[h.rarity].color;
+            g.previewHelmet(h.id);
+            au.ui(); setTimeout(spin, 60 + e * e * 280);
+          } else {
+            // also lands here if you walked away from the tab mid-spin
+            this._spinning = false; res.done = true; this.helmSel = res.helmet.id;
+            if (!res.dup) g.equipHelmet(res.helmet.id);
+            if (el) { au.bank(res.helmet.rarity !== 'common'); this.refresh(); }
+          }
+        };
+        spin();
+        break;
+      }
       case 'mod': {
         const e = s.entry(this.sel), st = e ? modState(e, MOD_BY_ID[v]) : 'locked';
         if (st === 'buy') { if (g.buyMod(this.sel, v)) au.bank(false); else au.deny(); }
@@ -287,6 +317,33 @@ export class Menus {
       </div></div>`;
   }
 
+  // ---- helmets: cases and the collection
+  _helmTab() {
+    const s = this.game.save, hs = s.data.helmets, res = this._case;
+    const rar = (h) => RARITY[h.rarity];
+    const odds = Object.entries(RARITY).map(([k, q]) => `<span style="color:${q.color}">${k === 'ghost' ? '???' : q.name} ${q.chance}%</span>`).join(' · ');
+    let reel = '<div id="reel" class="reel idle">Open a case to win a helmet</div>';
+    if (res && !res.done) reel = '<div id="reel" class="reel">…</div>';
+    else if (res) {
+      const q = rar(res.helmet);
+      reel = `<div id="reel" class="reel won" style="color:${q.color}">${res.helmet.name}</div>
+        <div class="mi" style="text-align:center">${q.name ? q.name.toUpperCase() : 'NO RARITY — ONE OF A KIND'} · ${res.dup ? `you already had it — ${money(res.refund)} back` : 'NEW — now wearing it'}</div>`;
+    }
+    const owned = HELMETS.filter((h) => hs.owned[h.id]).length;
+    const grid = HELMETS.map((h) => {
+      const q = rar(h), has = !!hs.owned[h.id];
+      return `<button class="hel ${has ? 'own' : ''} ${hs.on === h.id ? 'on' : ''}" style="border-color:${q.color}" data-a="helm" data-v="${h.id}" ${has ? '' : 'disabled'}>
+        <b>${has ? h.name : '? ? ?'}</b><span style="color:${q.color}">${hs.on === h.id ? 'WEARING' : q.name || (has ? 'ONE OF A KIND' : '???')}</span></button>`;
+    }).join('');
+    return `<div class="mod on"><div class="mh"><span class="mn">Helmet Case</span><span class="tag2 price">${money(CASE_PRICE)}</span></div>
+        <div class="mi">One random helmet per case. A duplicate pays ${money(DUPLICATE_REFUND)} back.</div>
+        <div class="odds">${odds}</div>
+        ${reel}
+        <button class="mbtn" data-a="case" ${s.cash < CASE_PRICE || this._spinning ? 'disabled' : ''}>${s.cash < CASE_PRICE ? `NEED ${money(CASE_PRICE - s.cash)} MORE` : `OPEN CASE · ${money(CASE_PRICE)}`}</button></div>
+      <div class="sec">Your helmets · ${owned} of ${HELMETS.length} · tap one to wear it</div>
+      <div class="hgrid">${grid}</div>`;
+  }
+
   // ---- customs: mods and looks for the bike you rode in on
   _customs() {
     const g = this.game, s = g.save, id = s.data.bike, bike = BIKE_BY_ID[id];
@@ -294,14 +351,14 @@ export class Menus {
     const entry = s.entry(id) || newEntry();
     if (this.gtab === 'bike') this.gtab = 'perf';
     const tab = (k, n) => `<button class="${this.gtab === k ? 'on' : ''}" data-a="gtab" data-v="${k}">${n}</button>`;
-    const body = this.gtab === 'look' ? this._lookTab(bike, entry) : this._perfTab(bike, entry);
+    const body = this.gtab === 'look' ? this._lookTab(bike, entry) : this.gtab === 'helm' ? this._helmTab() : this._perfTab(bike, entry);
     return `<div class="screen" id="garage">
       <div class="head"><button class="back" data-a="back">LEAVE</button><div class="h1">CUSTOMS</div><div class="cash">${money(s.cash)}</div></div>
       <div class="body">
         <div></div>
         <div class="detail">
           <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
-          <div class="gtabs">${tab('perf', 'PERFORMANCE')}${tab('look', 'APPEARANCE')}</div>
+          <div class="gtabs">${tab('perf', 'PERFORMANCE')}${tab('look', 'APPEARANCE')}${tab('helm', 'HELMETS')}</div>
           <div class="scroll gbody">${body}</div>
         </div>
       </div></div>`;

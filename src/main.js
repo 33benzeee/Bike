@@ -17,6 +17,7 @@ import { Save } from './progress.js';
 import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { Hud, money } from './ui/hud.js';
+import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet } from './helmets.js';
 import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
 
@@ -89,6 +90,7 @@ class Game {
     }
     this._wire();
     this.setBike(this.save.data.bike, false);
+    this._wearHelmet();
     this._updateControlsMode();
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250));
@@ -116,16 +118,17 @@ class Game {
     traffic.onHonk = () => audio.honk();
     cops.onWanted = () => { hud.banner('WANTED', HEAT_NOTE[1], 'red', 2.2); audio.wanted(); };
     cops.onHeat = (h) => { hud.banner(`HEAT ${h}`, HEAT_NOTE[h], 'red', 2.4); audio.wanted(); };
+    cops.onOfficer = () => { hud.popup('OFFICER ON FOOT — MOVE!', 0); audio.wanted(); };
     cops.onEscape = (h) => {
       const r = HEAT_REWARD[h];
       save.earn(r); save.stat('escape', h);
       hud.banner('ESCAPED', `Heat ${h} · +${money(r)}`, 'grn', 3); audio.escaped();
     };
-    cops.onBusted = () => {
+    cops.onBusted = (heat, tackled) => {
       const fine = Math.min(save.cash, Math.max(100, Math.round(save.cash * 0.15)));
       save.earn(-fine);
       tricks.crash();
-      hud.banner('BUSTED', fine ? `Fined ${money(fine)}` : 'They let you off with a warning', 'red', 3.2); audio.busted();
+      hud.banner(tackled ? 'TACKLED' : 'BUSTED', fine ? `${tackled ? 'An officer ran you down · f' : 'F'}ined ${money(fine)}` : 'They let you off with a warning', 'red', 3.2); audio.busted();
       this.respawn(true);
     };
     this.input.onMode = () => { this._updateControlsMode(); if (this.menus.current === 'title' || this.menus.current === 'pause' || this.menus.current === 'controls') this.menus.refresh(); };
@@ -322,7 +325,41 @@ class Game {
     if (this.preview) { this.scene.remove(this.preview.group); this.preview.dispose(); this.preview = null; }
     this.model.group.visible = true; this.rig.snap = true;
     this.shop = null;
+    this.previewHelmet(null);
     this.resume();
+  }
+
+  // ---- helmets ------------------------------------------------------------------
+  _wearHelmet() {
+    const h = this.save.data.helmets;
+    if (!HELMET_BY_ID[h.on] || !h.owned[h.on]) h.on = 'white';
+    applyHelmet(this.rider.helmetMat, this.rider.visorMat, HELMET_BY_ID[h.on], this.rider.helmetEyes);
+  }
+
+  equipHelmet(id) {
+    const h = this.save.data.helmets;
+    if (!h.owned[id] || !HELMET_BY_ID[id]) return false;
+    h.on = id; this.save.persist(); this._wearHelmet();
+    return true;
+  }
+
+  // Buy and open one case. The result is saved straight away, whatever the animation does.
+  openCase() {
+    const s = this.save, h = s.data.helmets;
+    if (s.cash < CASE_PRICE) return null;
+    s.data.cash -= CASE_PRICE;
+    const helmet = rollCase(), dup = !!h.owned[helmet.id];
+    if (dup) s.data.cash += DUPLICATE_REFUND; else h.owned[helmet.id] = true;
+    s.persist();
+    return { helmet, dup, refund: dup ? DUPLICATE_REFUND : 0 };
+  }
+
+  // show a helmet floating above the bike in Customs (null hides it)
+  previewHelmet(id) {
+    if (!id) { if (this.helmetShow) this.helmetShow.group.visible = false; return; }
+    if (!this.helmetShow) { this.helmetShow = buildHelmet(); this.helmetShow.group.scale.setScalar(2.1); this.scene.add(this.helmetShow.group); }
+    const hs = this.helmetShow;
+    hs.def = HELMET_BY_ID[id]; applyHelmet(hs.shell, hs.visor, hs.def, hs.eyes); hs.group.visible = true;
   }
 
   // ---- full-screen map and waypoints ---------------------------------------------
@@ -435,6 +472,14 @@ class Game {
     this.time = (this.time || 0) + dt;
     this.model.animate(this.time, this.phys.crashed ? 0 : this.phys.speed);
     if (this.preview) this.preview.animate(this.time, 0);
+    animateHelmet(this.rider.helmetMat, HELMET_BY_ID[this.save.data.helmets.on], this.time, this.rider.helmetEyes);
+    if (this.helmetShow && this.helmetShow.group.visible) {
+      // the helmet on display in Customs turns slowly above the bike
+      const hs = this.helmetShow, v = this.city.spots.customs.view;
+      hs.group.position.set(v.x, v.y + 1.55 + Math.sin(this.time * 1.6) * 0.04, v.z);
+      hs.group.rotation.y = this.time * 0.9;
+      animateHelmet(hs.shell, hs.def, this.time, hs.eyes);
+    }
     this.effects.update(dt);
     if (!this.skipRender) this.renderer.render(this.scene, this.camera);
     this._adapt(raw);
@@ -550,7 +595,7 @@ class Game {
     const pp = this.foot || p;
     this.traffic.update(dt, pp, this.cops.units);
     const offence = p.crashed ? 0 : p.wheelieT > 0.5 ? 1 : (p.frontContact && !p.rearContact && p.pitch < -0.2) ? 0.8 : p.rearLocked ? 0.3 : p.airTime > 0.6 ? 0.5 : 0;
-    this.cops.update(dt, { x: pp.x, y: pp.y, z: pp.z, vx: pp.vx, vz: pp.vz, speed: pp.speed, crashed: p.crashed && !this.foot && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto' && !this.foot, hitCop: this.hitCop, groundY: this.foot ? this.foot.y : groundY, topSpeed: spec.drive.topSpeed }, this.traffic);
+    this.cops.update(dt, { x: pp.x, y: pp.y, z: pp.z, vx: pp.vx, vz: pp.vz, speed: pp.speed, crashed: p.crashed && !this.foot && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto' && !this.foot, hitCop: this.hitCop, groundY: this.foot ? this.foot.y : groundY, topSpeed: spec.drive.topSpeed, onFoot: !!this.foot }, this.traffic);
 
     if (this.noCops) { this.cops.suspicion = 0; if (this.cops.wanted) this.cops.reset(pp.x, pp.z); }
 

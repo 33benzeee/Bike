@@ -70,7 +70,8 @@ wall? Hold brake to paddle backwards.
   stair sets, and the Wheelie Works shop. Traffic obeys lights; cars brake for you.
 - **Cops** — patrols notice wheelies, speeding and e-motos. Five heat levels escalate from
   one cruiser to backup, roadblocks, bike cops that follow you through alleys, and a
-  helicopter. Break line of sight and stay hidden to escape for a payout.
+  helicopter. Break line of sight and stay hidden to escape for a payout. Dawdle or walk
+  near a cruiser and it pulls up short, an officer jumps out and runs you down.
 - **Progression** — cash from combos, escapes and 21 challenges buys bikes and
   customisation. Progress saves in the browser.
 - **Shops you ride to** — next to the spawn are the *Dealership* (buy and switch bikes)
@@ -81,6 +82,8 @@ wall? Hold brake to paddle backwards.
   (battery stages, controller, high-current tune, sprocket, weight reduction, brakes,
   tyres) plus a free suspension tune, and an *Appearance* tab with per-part paint from a
   colour picker, wraps, wheel LEDs, a flag pole and a name plate.
+- **Helmet cases** — the Customs *Helmets* tab sells cases that drop one of 19 helmets:
+  Common, Rare, Epic and Legendary, plus the Ghost Helmet, which has no rarity at all.
 - **Day, golden hour and night**, four camera modes, synthesised audio.
 
 ## Code map
@@ -94,6 +97,7 @@ wall? Hold brake to paddle backwards.
 | `src/world/` | City generator, terrain/colliders, sky and lighting |
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
 | `src/tricks.js`, `src/progress.js` | Scoring, save data, challenges |
+| `src/helmets.js` | Helmet catalogue, case odds and the helmet model |
 | `src/input.js`, `src/ui/` | Keyboard/gamepad/touch input, HUD, menus, touch controls |
 | `src/audio.js`, `src/effects.js`, `src/camera.js` | Sound, particles, cameras |
 

@@ -31,6 +31,7 @@ const DEFAULTS = () => ({
   cash: 0, bike: 'wheelie',
   owned: { wheelie: newEntry() },
   stats: {}, done: {},
+  helmets: { owned: { white: true }, on: 'white' },
   settings: { assist: 1, units: 'mph', time: 'day', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
 });
 
@@ -41,7 +42,7 @@ export class Save {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const d = JSON.parse(raw), def = DEFAULTS();
-        this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) } };
+        this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) }, helmets: { owned: { ...def.helmets.owned, ...((d.helmets || {}).owned || {}) }, on: (d.helmets || {}).on || 'white' } };
       }
     } catch (e) { /* private mode or corrupt save: start fresh */ }
     for (const id of Object.keys(this.data.owned)) this.data.owned[id] = upgradeEntry(this.data.owned[id]); // older saves

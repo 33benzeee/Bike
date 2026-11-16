@@ -273,6 +273,20 @@ body.onfoot #t-stoppie { display: none; }
 @media (max-height: 430px) { .mi { font-size: 11px; } .mod { padding: 5px 8px; gap: 3px; } .picker { gap: 4px; } }
 @media (max-height: 430px) { .chip { padding: 5px 8px; font-size: 11px; } .chips { gap: 4px; } .gtabs button { padding: 6px 4px; } .pstats span { font-size: 8px; } }
 
+/* helmet cases */
+.odds { font: 600 10px/1.5 system-ui, sans-serif; letter-spacing: 0.03em; }
+.reel { font: 800 clamp(16px, 4vh, 24px) var(--font); letter-spacing: 0.05em; text-align: center; padding: 9px 6px; background: #000; border: 1px solid var(--line); min-height: 1.3em; text-transform: uppercase; }
+.reel.idle { font: 12px system-ui, sans-serif; color: var(--dim); letter-spacing: 0; text-transform: none; }
+.reel.won { animation: won 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); text-shadow: 0 0 14px currentColor; }
+@keyframes won { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.hgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 5px; flex: none; }
+.hel { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; padding: 6px 8px; background: rgba(255, 255, 255, 0.05); border-left: 3px solid; min-width: 0; }
+.hel b { font: 700 12px var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.hel span { font: 700 9px system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.hel:disabled { opacity: 0.45; cursor: default; } .hel:disabled b { color: var(--dim); }
+.hel.on { background: rgba(255, 210, 31, 0.16); outline: 1px solid var(--yel); outline-offset: -1px; }
+@media (prefers-reduced-motion: reduce) { .reel.won { animation: none; } }
+
 /* full-screen map + waypoints */
 #minimap { pointer-events: auto; cursor: pointer; }
 #wpd { font: 800 13px var(--font); color: #ff4fd8; text-shadow: 0 1px 0 #000; letter-spacing: 0.04em; }

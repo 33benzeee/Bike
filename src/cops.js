@@ -7,6 +7,10 @@ import { N, PITCH, roadC } from './world/city.js';
 import { buildBike } from './bikeModel.js';
 import { Rider } from './rider.js';
 import { BIKE_BY_ID, effectiveSpec } from './bikes.js';
+import { circleVsObstacle } from './world/terrain.js';
+
+const _hit = { nx: 0, nz: 0 };
+const OFFICER_SPEED = 7.4; // faster than you can walk, slower than any bike at pace
 
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -103,7 +107,22 @@ export class Cops {
   _remove(u) {
     this.scene.remove((u.mesh.g || u.mesh));
     if (u.bike) { this.scene.remove(u.model.group); }
+    if (u.foot && u.car0 && u.car0.officer === u) u.car0.officer = null;
+    if (u.car && u.officer) { const o = u.officer; u.officer = null; o.car0 = null; this._remove(o); }
     const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1);
+  }
+
+  // An officer steps out of a stopped cruiser and gives chase on foot.
+  _deployOfficer(car) {
+    const rider = new Rider({ hoodie: 0x1c2d5a, pants: 0x151a2a, shoes: 0x111111, gloves: 0x111111, helmet: 0x1c2d5a, visor: 0x101216, skin: 0xd8a47c, pack: 0x1c2d5a });
+    rider.beginWalk(this.scene);
+    const sx = Math.cos(car.yaw), sz = -Math.sin(car.yaw); // out of the driver's door
+    const x = car.x + sx * 1.7, z = car.z + sz * 1.7;
+    const u = { foot: true, rider, mesh: rider.group, x, y: this.terrain.height(x, z), z, yaw: car.yaw, speed: 0, phase: 0, rise: 1, chasing: true, state: 'chase', sees: false, age: 0, t: 0, stuck: 0, mode: 'chase', car0: car };
+    car.officer = u; car.outT = 0;
+    this.units.push(u);
+    if (this.onOfficer) this.onOfficer();
+    return u;
   }
 
   _addBikeCop(px, pz) {
@@ -285,6 +304,7 @@ export class Cops {
     const vmaxCar = CAR_SPEED[Math.max(1, this.heat)];
     for (let k = this.units.length - 1; k >= 0; k--) {
       const u = this.units[k];
+      if (!u) continue; // removed together with its car earlier in this pass
       u.age += dt;
       const d = Math.hypot(u.x - p.x, u.z - p.z);
       if (u.car) {
@@ -301,10 +321,19 @@ export class Cops {
         } else if (u.state === 'block') {
           u.speed = 0; u.blockT -= dt;
           if (u.blockT <= 0 || d > 220) { u.state = 'chase'; u.chasing = true; u.pi = -1; }
+        } else if (u.state === 'chase' && u.officer) {
+          u.speed *= 1 - Math.min(1, dt * 5); // parked while its officer is out on foot
         } else if (u.state === 'chase') {
+          // close behind someone walking or crawling along: get out and grab them
+          const slow = u.sees && d < 30 && (p.onFoot || Math.abs(p.speed) < 6.5);
+          if (slow && d < 17 && u.speed < 7) {
+            u.outT = (u.outT || 0) + dt;
+            if (u.outT > 0.8 && this.units.filter((q) => q.foot).length < 4) this._deployOfficer(u);
+          } else u.outT = 0;
           if (u.sees && this._clear(u.x, u.z, p.x, p.z)) {
             const lead = clamp(d / Math.max(8, u.speed), 0, 1.1);
-            this._drive(u, p.x + p.vx * lead, p.z + p.vz * lead, vmaxCar, dt);
+            // pull up short of someone on foot or crawling along rather than running them over
+            this._drive(u, p.x + p.vx * lead, p.z + p.vz * lead, slow ? clamp((d - 7.5) * 1.5, 0, vmaxCar) : vmaxCar, dt);
             u.pi = -1;
           } else this._route(u, seen ? p.x : this.lastX + Math.sin(u.age * 0.4 + k) * (this.seen ? 0 : 40), seen ? p.z : this.lastZ + Math.cos(u.age * 0.3 + k) * (this.seen ? 0 : 40), vmaxCar * 0.92, dt);
           if (d > 380) this._placeRandom(u, p.x, p.z, 130, 220);
@@ -351,6 +380,33 @@ export class Cops {
         g.updateMatrixWorld(true);
         u.rider.update(dt, u.fake, u.model, { one: false, no: false, stand: false, drag: false }, u.y);
         if (d > 300) { this._remove(u); continue; }
+      } else if (u.foot) {
+        // officer on foot: run the rider down, or jog back to the car
+        u.t += dt;
+        const back = u.mode === 'back', home = u.car0;
+        const tx = back && home ? home.x : p.x, tz = back && home ? home.z : p.z;
+        const dd = Math.hypot(tx - u.x, tz - u.z);
+        const diff = angDiff(Math.atan2(tx - u.x, tz - u.z), u.yaw);
+        u.yaw += clamp(diff * 8, -7, 7) * dt;
+        // a beat to climb out of the car, then a sprint
+        const vt = u.t < 0.45 ? 0 : OFFICER_SPEED * (back ? 0.8 : 1) * clamp(1.2 - Math.abs(diff) * 0.6, 0.35, 1);
+        u.speed += clamp(vt - u.speed, -20 * dt, 9 * dt);
+        let nx = u.x + Math.sin(u.yaw) * u.speed * dt, nz = u.z + Math.cos(u.yaw) * u.speed * dt;
+        if (T.height(nx, nz) - u.y > 0.7) { nx = u.x; nz = u.z; }
+        T.query(nx, nz, 0.6, (o) => {
+          if (o.carOnly || o.y1 < u.y + 0.5) return;
+          const pen = circleVsObstacle(o, nx, nz, 0.32, _hit);
+          if (pen > 0) { nx += _hit.nx * pen; nz += _hit.nz * pen; }
+        });
+        if (Math.hypot(nx - u.x, nz - u.z) < u.speed * dt * 0.3) u.stuck += dt; else u.stuck = Math.max(0, u.stuck - dt);
+        u.x = nx; u.z = nz; u.y += (T.height(nx, nz) - u.y) * Math.min(1, dt * 12);
+        u.phase += Math.abs(u.speed) * dt * 2.7;
+        u.rider.updateWalk(dt, u);
+        if (!back) {
+          // close enough to grab: you're caught unless you're moving at real speed
+          if (d < 1.5 && (p.onFoot || p.crashed || Math.abs(p.speed) < 6)) { this._endChase(false, true); return; }
+          if (d > 32 || u.t > 18 || u.stuck > 2.5) u.mode = 'back';
+        } else if (!home || dd < 2.4 || u.t > 34) { this._remove(u); continue; }
       } else if (u.heli) {
         const tx = (seen || u.sees ? p.x : this.lastX) - 14, tz = (seen || u.sees ? p.z : this.lastZ) - 10;
         u.x += (tx - u.x) * Math.min(1, dt * 0.9); u.z += (tz - u.z) * Math.min(1, dt * 0.9);
@@ -378,26 +434,28 @@ export class Cops {
     if (this.onWanted) this.onWanted();
   }
 
-  _endChase(escaped) {
+  _endChase(escaped, tackled) {
     const heat = this.maxHeat;
     this.wanted = false; this.heat = 0; this.maxHeat = 0; this.seen = false; this.seenT = 0; this.evade = 0; this.bust = 0; this.suspicion = 0;
     for (let k = this.units.length - 1; k >= 0; k--) {
       const u = this.units[k];
-      if (u.heli || u.bike) { this._remove(u); continue; }
+      if (!u) continue; // an officer removed together with its car
+      if (u.heli || u.bike || u.foot) { this._remove(u); continue; }
       u.chasing = false; u.state = 'leave'; u.age = 0;
       u.gx = u.x + (Math.random() - 0.5) * 500; u.gz = u.z + (Math.random() - 0.5) * 500;
     }
     this.heli = null;
     this.units.sirens = false;
-    if (escaped) { if (this.onEscape) this.onEscape(heat); } else if (this.onBusted) this.onBusted(heat);
+    if (escaped) { if (this.onEscape) this.onEscape(heat); } else if (this.onBusted) this.onBusted(heat, !!tackled);
   }
 
   // After a bust / respawn: clear the area.
   reset(px, pz) {
     for (let k = this.units.length - 1; k >= 0; k--) {
       const u = this.units[k];
+      if (!u) continue;
       if (!u.car) { this._remove(u); continue; }
-      u.state = 'patrol'; u.chasing = false;
+      u.state = 'patrol'; u.chasing = false; u.officer = null; u.outT = 0;
       this._placeRandom(u, px, pz, 150, 400);
     }
     while (this.units.length > 3) this._remove(this.units[this.units.length - 1]);

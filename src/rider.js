@@ -2,6 +2,7 @@
 // every frame so hands stay on the grips and feet on the pegs — until a trick
 // (or a crash) says otherwise.
 import * as THREE from 'three';
+import { buildHelmet } from './helmets.js';
 import { circleVsObstacle } from './world/terrain.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -60,11 +61,10 @@ export class Rider {
     const pack = boxM(0.24, 0.3, 0.1, mats.pack, this.torso); pack.position.set(0, 0.28, -0.14);
     const hood = boxM(0.2, 0.1, 0.12, mats.hoodie, this.torso); hood.position.set(0, TORSO - 0.02, -0.1);
     this.head = new THREE.Group(); this.head.position.set(0, TORSO + 0.15, 0.02); this.torso.add(this.head);
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 9), mats.helmet); helmet.scale.set(1, 1.04, 1.16); helmet.castShadow = true; this.head.add(helmet);
-    const visor = boxM(0.2, 0.085, 0.1, mats.visor, this.head); visor.position.set(0, 0.012, 0.105);
-    const chin = boxM(0.17, 0.08, 0.12, mats.helmet, this.head); chin.position.set(0, -0.075, 0.1);
-    const peak = boxM(0.2, 0.012, 0.14, mats.helmet, this.head); peak.position.set(0, 0.095, 0.14); peak.rotation.x = -0.25;
+    const helm = buildHelmet(mats.helmet, mats.visor); this.head.add(helm.group);
     const neck = boxM(0.09, 0.1, 0.09, mats.hoodie, this.torso); neck.position.set(0, TORSO + 0.03, 0);
+    this.helmetMat = mats.helmet; this.visorMat = mats.visor; // restyled by the helmet the player wears
+    this.helmetEyes = helm.eyes;
 
     this.arm = [0, 1].map(() => ({ up: limb(0.047, mats.hoodie), fore: limb(0.04, mats.hoodie), hand: boxM(0.075, 0.09, 0.085, mats.gloves), mid: V(), end: V(), root: V(), target: V() }));
     this.leg = [0, 1].map(() => ({ up: limb(0.072, mats.pants), fore: limb(0.054, mats.pants), foot: boxM(0.095, 0.075, 0.25, mats.shoes), mid: V(), end: V(), root: V(), target: V() }));
