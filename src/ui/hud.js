@@ -32,6 +32,7 @@ export class Hud {
       c.fillRect((b.x0 + world / 2) * k, (b.z0 + world / 2) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k);
     }
     this.mapImg = cv; this.mapK = k; this.mapWorld = world; this.spots = city.spots;
+    this.extra = { pois: [], target: null }; // job markers and the current job target
   }
 
   show(on) { this.el.classList.toggle('hidden', !on); if (!on) this.flash.classList.remove('on'); }
@@ -150,9 +151,18 @@ export class Hud {
       const pts = this._route(px, pz, wps[0]).map(([x, z]) => T(x, z));
       c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke();
     }
+    const ex = this.extra;
+    if (ex.target) {
+      c.strokeStyle = ex.target.color; c.lineWidth = 5 * k; c.lineJoin = 'round'; c.lineCap = 'round'; c.setLineDash([]);
+      const pts = this._route(px, pz, ex.target).map(([x, z]) => T(x, z));
+      c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke();
+    }
+    // job and race starts: pinned to the rim only on the big map
+    for (const q of ex.pois) { if (clampR && !place(q.x, q.z, false)) continue; badge(q.x, q.z, q.color, q.letter); }
     if (this.spots.dealer) badge(this.spots.dealer.x, this.spots.dealer.z, '#ffd21f', '$');
     if (this.spots.customs) badge(this.spots.customs.x, this.spots.customs.z, '#34d17a', 'C');
     wps.forEach((w, i) => badge(w.x, w.z, '#ff4fd8', String(i + 1)));
+    if (ex.target) badge(ex.target.x, ex.target.z, ex.target.color, ex.target.letter);
     const blink = Math.floor(this._blink * 5) % 2 === 0;
     for (const u of cops) {
       const hot = u.chasing || u.state === 'block';

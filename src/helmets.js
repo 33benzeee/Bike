@@ -9,6 +9,8 @@ export const RARITY = {
   legendary: { name: 'Legendary', color: '#ffb21f', chance: 3.75 },
   // the ghost helmet sits outside the rarity ladder
   ghost: { name: '', color: '#dfe8f0', chance: 0.25 },
+  // season rewards are earned out in the city, never dropped by a case
+  season: { name: 'Season 1', color: '#29f0d0', chance: 0 },
 };
 export const CASE_PRICE = 7500;
 export const DUPLICATE_REFUND = 1500;
@@ -32,6 +34,7 @@ export const HELMETS = [
   { id: 'gold', name: 'Solid Gold', rarity: 'legendary', color: 0xe0ad2a, metal: 1, rough: 0.16 },
   { id: 'galaxy', name: 'Galaxy', rarity: 'legendary', color: 0xa56bff, tex: 'galaxy', emissive: 0x2a0a66, glow: 0.9, metal: 0.4, rough: 0.3 },
   { id: 'rainbow', name: 'Prism', rarity: 'legendary', color: 0xffffff, metal: 0.7, rough: 0.2, anim: 'rainbow' },
+  { id: 'aurora', name: 'Aurora', rarity: 'season', color: 0x10202a, emissive: 0x29f0d0, glow: 1.1, metal: 0.6, rough: 0.22, anim: 'aurora' },
   { id: 'ghost', name: 'Ghost Helmet', rarity: 'ghost', color: 0xd4dde6, emissive: 0xa9bccf, glow: 0.55, opacity: 0.36, rough: 0.2, anim: 'ghost' },
 ];
 export const HELMET_BY_ID = Object.fromEntries(HELMETS.map((h) => [h.id, h]));
@@ -62,6 +65,7 @@ export function applyHelmet(shell, visor, h, eyes) {
 export function animateHelmet(shell, h, t, eyes) {
   if (!h || !h.anim) return;
   if (h.anim === 'rainbow') shell.color.setHSL((t * 0.22) % 1, 0.95, 0.55);
+  else if (h.anim === 'aurora') { shell.emissive.setHSL(0.47 + Math.sin(t * 0.9) * 0.14, 1, 0.5); shell.emissiveIntensity = h.glow + Math.sin(t * 2.6) * 0.3; }
   else if (h.anim === 'ghost') {
     shell.opacity = h.opacity + Math.sin(t * 2.2) * 0.08; shell.emissiveIntensity = h.glow + Math.sin(t * 2.2 + 1) * 0.2;
     // the eyes flicker, and now and then they blink

@@ -2,6 +2,7 @@
 import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
 import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND } from '../helmets.js';
+import { RACES, MEDALS, FOOD, clock, medalCash } from '../jobs.js';
 import { TIMES } from '../world/sky.js';
 import { CAM_MODES } from '../camera.js';
 import { DEVICE_LABEL } from '../device.js';
@@ -72,6 +73,7 @@ export class Menus {
       case 'go': au.ui(); this.show(v); break;
       case 'back': au.ui(); if (this.current === 'dealer' || this.current === 'customs') g.closeShop(); else this.show(this.parent); break;
       case 'quit': au.ui(); g.toTitle(); break;
+      case 'abandon': au.ui(); g.jobs.abandon(); g.resume(); break;
       case 'sel': au.ui(); this.sel = v; if (!s.owns(v)) this.gtab = 'bike'; this.refresh(); break;
       case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.refresh(); break;
       case 'use': au.ui(); g.selectBike(v); this.refresh(); break;
@@ -158,6 +160,8 @@ export class Menus {
       <div class="tag">${pause ? 'Take a breather.' : 'Wheelies. Tricks. Traffic. Trouble.'}</div>
       <div class="menu">
         <button class="btn primary" data-a="${pause ? 'resume' : 'ride'}">${pause ? 'RESUME' : 'RIDE'}</button>
+        ${pause && g.jobs.mode ? `<button class="btn" data-a="abandon">${g.jobs.mode === 'delivery' ? 'ABANDON DELIVERY' : g.jobs.mode === 'wheelie' ? 'QUIT WHEELIE RUN' : 'QUIT RACE'}</button>` : ''}
+        <button class="btn" data-a="go" data-v="events">SEASON &amp; RACES <small>${g.jobs.seasonFound()}/${g.jobs.tokens.length}</small></button>
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
         <button class="btn" data-a="go" data-v="settings">SETTINGS</button>
@@ -321,7 +325,7 @@ export class Menus {
   _helmTab() {
     const s = this.game.save, hs = s.data.helmets, res = this._case;
     const rar = (h) => RARITY[h.rarity];
-    const odds = Object.entries(RARITY).map(([k, q]) => `<span style="color:${q.color}">${k === 'ghost' ? '???' : q.name} ${q.chance}%</span>`).join(' · ');
+    const odds = Object.entries(RARITY).filter(([, q]) => q.chance > 0).map(([k, q]) => `<span style="color:${q.color}">${k === 'ghost' ? '???' : q.name} ${q.chance}%</span>`).join(' · ');
     let reel = '<div id="reel" class="reel idle">Open a case to win a helmet</div>';
     if (res && !res.done) reel = '<div id="reel" class="reel">…</div>';
     else if (res) {
@@ -394,6 +398,32 @@ export class Menus {
       <div class="scroll">${items}</div></div></div>`;
   }
 
+  // ---- the season hunt, races and deliveries at a glance
+  _events() {
+    const g = this.game, s = g.save, J = g.jobs, se = J.season, n = J.seasonFound(), total = J.tokens.length, done = s.data.season.done;
+    const ft = s.data.settings.units === 'mph', dist = (m) => (ft ? `${Math.round(m * 3.281)} ft` : `${Math.round(m)} m`);
+    const races = RACES.map((r) => {
+      const b = s.data.races[r.id] || { best: null, medal: 0 }, fmt = (v) => (r.wheelie ? dist(v) : clock(v));
+      return `<div class="race ${r.wheelie ? 'w' : ''}"><div class="n">${r.name}</div><div class="m m${b.medal}">${b.medal ? MEDALS[b.medal] : 'NO MEDAL'}</div>
+        <div class="d">${r.wheelie ? 'Longest wheelie in 60 s' : `${dist(r.len)} · ${r.nodes.length} checkpoints`} · best ${b.best == null ? '—' : fmt(b.best)}<br>
+        Bronze ${fmt(r.goals[0])} · Silver ${fmt(r.goals[1])} · Gold ${fmt(r.goals[2])} (${money(medalCash(r, 3))})</div></div>`;
+    }).join('');
+    const j = s.data.jobs;
+    return `<div class="screen center"><div class="col panel">
+      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">SEASON ${se.n}<small>${se.name}</small></div><div class="cash">${money(s.cash)}</div></div>
+      <div class="scroll">
+        <div class="season"><div class="sn">${se.item}s<small>${n} OF ${total} FOUND</small></div>
+          <div class="bar"><b style="width:${Math.round((n / total) * 100)}%"></b></div>
+          <div class="mi">${done ? `Season complete — the ${se.reward.name} is yours.` : `${total} are hidden around the city and they are not on the map. A meter shows up when one is close. Find them all for the <b>${se.reward.name}</b>, which you can't get any other way. ${money(se.each)} each.`}</div>
+          <div class="mi">Next season the hiding places and the reward change.</div></div>
+        <div class="sec">Races and wheelie runs · stop in a blue or pink ring to start</div>
+        ${races}
+        <div class="sec">Deliveries · stop in an orange ring to pick up an order</div>
+        <div class="race food"><div class="n">${FOOD.length} restaurants</div><div class="m m3">${money(j.earned)}</div>
+          <div class="d">${j.deliveries} delivered · best streak ${j.streakBest}<br>Faster drops tip more, wheelies on the way add a bonus, crashes damage the order, and each delivery in a row adds 10%.</div></div>
+      </div></div></div>`;
+  }
+
   _cheats() {
     const r = this._cheatMsg; this._cheatMsg = null;
     return `<div class="screen center"><div class="col panel">
@@ -449,6 +479,7 @@ export class Menus {
       <div class="scroll">
         <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. Tap a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
         <div class="tip"><b>Shops:</b> next to where you start are the <b>Dealership</b> (buy and switch bikes) and the <b>Customs</b> garage (mods, paint, wraps). Ride into the glowing ring at each to go in. Both are marked on the map.</div>
+        <div class="tip"><b>Jobs and races:</b> stop inside an <b>orange</b> ring to pick up a delivery, a <b>blue</b> ring to start a checkpoint race, or a <b>pink</b> ring for a wheelie run. They are all on the map. This season's hidden sprockets are not — a meter appears when one is close.</div>
         <div class="tip"><b>Cops:</b> wheelies, speeding and e-motos get you noticed. Once they chase, break line of sight — alleys, parks and gaps cars can't fit through — and stay hidden until the bar fills. Higher heat means roadblocks, bike cops and a helicopter, but a bigger payout when you escape.</div>
         ${order.map(([t, h]) => `<div class="sec" style="margin:16px 0 8px">${t}</div>${h}`).join('')}
       </div></div></div>`;

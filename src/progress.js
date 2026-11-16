@@ -25,6 +25,10 @@ export const CHALLENGES = [
   { id: 'esc5', name: 'Ghost', desc: 'Escape at heat 5', reward: 6000, stat: 'escape', goal: 5 },
   { id: 'spd40', name: 'Quick', desc: 'Hit 40 mph', reward: 400, stat: 'topSpeed', goal: 17.88 },
   { id: 'spd70', name: 'Warp Speed', desc: 'Hit 70 mph', reward: 2500, stat: 'topSpeed', goal: 31.3 },
+  { id: 'del1', name: 'First Order', desc: 'Complete a delivery', reward: 200, stat: 'deliveries', goal: 1 },
+  { id: 'del25', name: 'Courier', desc: 'Complete 25 deliveries', reward: 3000, stat: 'deliveries', goal: 25 },
+  { id: 'gold1', name: 'Podium', desc: 'Win a gold medal', reward: 1000, stat: 'golds', goal: 1 },
+  { id: 'gold6', name: 'Clean Sweep', desc: 'Gold in every race and wheelie run', reward: 8000, stat: 'golds', goal: 6 },
 ];
 
 const DEFAULTS = () => ({
@@ -32,6 +36,7 @@ const DEFAULTS = () => ({
   owned: { wheelie: newEntry() },
   stats: {}, done: {},
   helmets: { owned: { white: true }, on: 'white' },
+  jobs: { deliveries: 0, earned: 0, streakBest: 0 }, races: {}, season: { id: '', found: {}, done: false },
   settings: { assist: 1, units: 'mph', time: 'day', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
 });
 
@@ -42,7 +47,7 @@ export class Save {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const d = JSON.parse(raw), def = DEFAULTS();
-        this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) }, helmets: { owned: { ...def.helmets.owned, ...((d.helmets || {}).owned || {}) }, on: (d.helmets || {}).on || 'white' } };
+        this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) }, helmets: { owned: { ...def.helmets.owned, ...((d.helmets || {}).owned || {}) }, on: (d.helmets || {}).on || 'white' }, jobs: { ...def.jobs, ...(d.jobs || {}) }, races: { ...(d.races || {}) }, season: { ...def.season, ...(d.season || {}), found: { ...((d.season || {}).found || {}) } } };
       }
     } catch (e) { /* private mode or corrupt save: start fresh */ }
     for (const id of Object.keys(this.data.owned)) this.data.owned[id] = upgradeEntry(this.data.owned[id]); // older saves

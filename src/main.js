@@ -17,6 +17,7 @@ import { Save } from './progress.js';
 import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { Hud, money } from './ui/hud.js';
+import { Jobs } from './jobs.js';
 import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet } from './helmets.js';
 import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
@@ -91,6 +92,7 @@ class Game {
     this._wire();
     this.setBike(this.save.data.bike, false);
     this._wearHelmet();
+    this.jobs = new Jobs(this);
     this._updateControlsMode();
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250));
@@ -127,7 +129,7 @@ class Game {
     cops.onBusted = (heat, tackled) => {
       const fine = Math.min(save.cash, Math.max(100, Math.round(save.cash * 0.15)));
       save.earn(-fine);
-      tricks.crash();
+      tricks.crash(); this.jobs.busted();
       hud.banner(tackled ? 'TACKLED' : 'BUSTED', fine ? `${tackled ? 'An officer ran you down · f' : 'F'}ined ${money(fine)}` : 'They let you off with a warning', 'red', 3.2); audio.busted();
       this.respawn(true);
     };
@@ -302,12 +304,13 @@ class Game {
   }
   pause() { if (this.state !== 'play') return; this.state = 'pause'; this.tricks.bankNow(); this.menus.show('pause'); this.touch.show(false); this.input.enabled = false; }
   resume() { this.state = 'play'; this.menus.hide(); this.hud.show(true); this.input.enabled = true; this.input.queue.length = 0; this._updateControlsMode(); this.last = performance.now(); }
-  toTitle() { this.tricks.bankNow(); this.cops.reset(this.phys.x, this.phys.z); this.respawn(true, true); this.state = 'title'; this.hud.show(false); this.touch.show(false); this.menus.show('title'); }
+  toTitle() { this.jobs.cancel(); this.tricks.bankNow(); this.cops.reset(this.phys.x, this.phys.z); this.respawn(true, true); this.state = 'title'; this.hud.show(false); this.touch.show(false); this.menus.show('title'); }
 
   // ---- shops: ride into the marker at the dealership or inside the customs garage
   openShop(kind) {
     if (this.state !== 'play') return;
     if (this.cops.wanted) { if (!this._shopWarn) { this._shopWarn = true; this.hud.hint('Lose the cops first — the shops are closed to wanted riders', 3); } return; }
+    if (this.jobs.mode && this.jobs.mode !== 'delivery') this.jobs.cancel(); // walking into a shop forfeits a race
     this.shop = kind; this.shopLock = kind;
     this.tricks.bankNow(); this._tricksOff();
     this.prevState = 'play'; this.state = 'garage';
@@ -548,6 +551,8 @@ class Game {
     // the stoppie button is the front brake on its own: on the ground it lifts the
     // tail, in a wheelie it only stops the front wheel spinning
     inp.stoppie = frontLever;
+    // held on the line during a race countdown
+    if (this.jobs.locked) { inp.throttle = 0; inp.brake = 0.4; inp.steer = 0; inp.hop = false; inp.lean = 0; inp.stoppie = false; inp.burnout = false; if (!p.crashed) { p.vx = 0; p.vz = 0; } }
     inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
 
@@ -563,7 +568,7 @@ class Game {
       else if (e.type === 'hop') this.audio.hop();
       else if (e.type === 'bump') { this.audio.bump(); this.rig.kick(0.3); if (e.cop) this.hitCop = true; else if (e.ref) this.traffic.bumped(e.ref); }
       else if (e.type === 'crash') {
-        this.audio.crash(); this.rig.kick(1); this.tricks.crash();
+        this.audio.crash(); this.rig.kick(1); this.tricks.crash(); this.jobs.crashed();
         if (e.cop) this.hitCop = true; else if (e.ref) this.traffic.bumped(e.ref);
         this.effects.sparks(p.x, groundY + 0.3, p.z, 16, p.vx, p.vz); this.effects.dust(p.x, groundY, p.z, 8, [0.6, 0.6, 0.6]);
         const msg = { loopout: 'LOOPED OUT', endo: 'OVER THE BARS', hit: 'WRECKED', slam: 'SLAMMED', sideways: 'HIGH-SIDED', slide: 'LOW-SIDED' }[e.reason] || 'CRASHED';
@@ -597,6 +602,7 @@ class Game {
     const offence = p.crashed ? 0 : p.wheelieT > 0.5 ? 1 : (p.frontContact && !p.rearContact && p.pitch < -0.2) ? 0.8 : p.rearLocked ? 0.3 : p.airTime > 0.6 ? 0.5 : 0;
     this.cops.update(dt, { x: pp.x, y: pp.y, z: pp.z, vx: pp.vx, vz: pp.vz, speed: pp.speed, crashed: p.crashed && !this.foot && this.respawnGrace <= 0, offence, emoto: spec.cls === 'emoto' && !this.foot, hitCop: this.hitCop, groundY: this.foot ? this.foot.y : groundY, topSpeed: spec.drive.topSpeed, onFoot: !!this.foot }, this.traffic);
 
+    if (this.jobs.sanctioned && !this.cops.wanted) this.cops.suspicion = 0; // races are run with the city's blessing
     if (this.noCops) { this.cops.suspicion = 0; if (this.cops.wanted) this.cops.reset(pp.x, pp.z); }
 
     // ---- effects
@@ -648,6 +654,7 @@ class Game {
   // shop markers, the garage door, shop entry and waypoint arrival
   _world(dt, pp) {
     const sp = this.city.spots, t = this.time || 0;
+    this.jobs.update(dt, pp, this.phys, !!this.foot);
     for (const k of ['dealer', 'customs']) {
       const z = sp[k], d = Math.hypot(pp.x - z.x, pp.z - z.z);
       z.marker.rotation.y = t * 0.8; z.marker.scale.setScalar(1 + Math.sin(t * 3) * 0.04);

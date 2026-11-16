@@ -287,6 +287,29 @@ body.onfoot #t-stoppie { display: none; }
 .hel.on { background: rgba(255, 210, 31, 0.16); outline: 1px solid var(--yel); outline-offset: -1px; }
 @media (prefers-reduced-motion: reduce) { .reel.won { animation: none; } }
 
+/* jobs, races and the season hunt */
+#sprk { border-color: #29f0d0; } #sprk .bar b { background: #29f0d0; }
+#job { background: var(--panel); border-left: 4px solid #ff8a1f; padding: 5px 10px 6px; min-width: 170px; max-width: min(44vw, 300px); }
+#job[data-k="race"] { border-color: #3fa9ff; } #job[data-k="wheelie"] { border-color: #ff4fd8; }
+#job .jt { font-size: 12px; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#job .jc { font-size: clamp(22px, 5vh, 34px); line-height: 1.05; color: var(--yel); font-variant-numeric: tabular-nums; }
+#job.late .jc { color: var(--red); animation: pulse 0.5s infinite alternate; }
+#job .js { font: 600 11px/1.3 system-ui, sans-serif; color: var(--dim); letter-spacing: 0; }
+.season { border-left: 3px solid #29f0d0; background: rgba(41, 240, 208, 0.08); padding: 9px 11px; display: flex; flex-direction: column; gap: 5px; flex: none; }
+.season .sn { font: 800 clamp(15px, 3vh, 20px) var(--font); } .season .sn small { color: #29f0d0; margin-left: 8px; font-size: 0.7em; letter-spacing: 0.08em; }
+.season .bar { height: 7px; background: rgba(255, 255, 255, 0.14); } .season .bar b { display: block; height: 100%; background: #29f0d0; }
+.race { background: rgba(255, 255, 255, 0.05); padding: 7px 10px; border-left: 3px solid #3fa9ff; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; flex: none; }
+.race.w { border-color: #ff4fd8; } .race.food { border-color: #ff8a1f; }
+.race .n { font: 800 14px var(--font); } .race .m { font: 800 12px var(--font); letter-spacing: 0.06em; text-align: right; }
+.race .m.m3 { color: var(--yel); } .race .m.m2 { color: #cfd6e0; } .race .m.m1 { color: #d08a4a; } .race .m.m0 { color: var(--dim); }
+.race .d { grid-column: 1 / -1; font: 12px/1.35 system-ui, sans-serif; color: var(--dim); }
+.season, .race { margin-bottom: 6px; }
+@media (max-height: 430px) {
+  /* short phones: the main menu goes two-up so every entry stays on screen */
+  .menu { display: grid; grid-template-columns: 1fr 1fr; width: min(600px, 92vw); } .menu .primary { grid-column: 1 / -1; }
+  #job .js { display: none; } #job .jc { font-size: 20px; } #job { padding: 3px 9px 4px; min-width: 150px; }
+}
+
 /* full-screen map + waypoints */
 #minimap { pointer-events: auto; cursor: pointer; }
 #wpd { font: 800 13px var(--font); color: #ff4fd8; text-shadow: 0 1px 0 #000; letter-spacing: 0.04em; }

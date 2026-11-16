@@ -72,8 +72,16 @@ wall? Hold brake to paddle backwards.
   one cruiser to backup, roadblocks, bike cops that follow you through alleys, and a
   helicopter. Break line of sight and stay hidden to escape for a payout. Dawdle or walk
   near a cruiser and it pulls up short, an officer jumps out and runs you down.
-- **Progression** — cash from combos, escapes and 21 challenges buys bikes and
-  customisation. Progress saves in the browser.
+- **Progression** — cash from combos, escapes, jobs, races and 25 challenges buys bikes
+  and customisation. Progress saves in the browser.
+- **Delivery jobs** — stop in an orange ring outside one of six restaurants to pick up an
+  order, then race the clock to the drop-off. Faster drops tip more, wheelies on the way
+  add a bonus, crashes damage the order, and deliveries in a row build a streak.
+- **Races and wheelie runs** — four checkpoint races (blue rings) and two 60-second
+  longest-wheelie runs (pink rings), each with bronze, silver and gold targets.
+- **Seasons** — each season hides a new set of collectibles around the city, off the map,
+  with its own reward. Season 1 hides 20 Neon Sprockets; find them all for the Aurora
+  helmet. Add a season in `src/seasons.js`.
 - **Shops you ride to** — next to the spawn are the *Dealership* (buy and switch bikes)
   and the *Customs* garage, whose door rolls up as you arrive. Ride into the glowing ring.
 - **Map** — tap the minimap (or press `N`) for the full map; tap it to drop waypoints,
@@ -98,8 +106,17 @@ wall? Hold brake to paddle backwards.
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
 | `src/tricks.js`, `src/progress.js` | Scoring, save data, challenges |
 | `src/helmets.js` | Helmet catalogue, case odds and the helmet model |
+| `src/jobs.js`, `src/seasons.js` | Deliveries, races, wheelie runs; season collectibles and rewards |
 | `src/input.js`, `src/ui/` | Keyboard/gamepad/touch input, HUD, menus, touch controls |
 | `src/audio.js`, `src/effects.js`, `src/camera.js` | Sound, particles, cameras |
 
 Bike and brand names belong to their respective owners; this is an unaffiliated fan
 project. three.js is MIT licensed (see `vendor/THREE-LICENSE`).
+
+## Roadmap
+
+Planned, not built yet:
+
+- **Online multiplayer** — needs a server; the game is currently static files.
+- **Season pass** — a reward track on top of the seasons in `src/seasons.js`.
+
