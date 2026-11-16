@@ -131,7 +131,7 @@ class Game {
       save.earn(-fine);
       tricks.crash(); this.jobs.busted();
       hud.banner(tackled ? 'TACKLED' : 'BUSTED', fine ? `${tackled ? 'An officer ran you down · f' : 'F'}ined ${money(fine)}` : 'They let you off with a warning', 'red', 3.2); audio.busted();
-      this.respawn(true);
+      this._startBust(); // cuffed, camera circles, then back to the shop
     };
     this.input.onMode = () => { this._updateControlsMode(); if (this.menus.current === 'title' || this.menus.current === 'pause' || this.menus.current === 'controls') this.menus.refresh(); };
     // move cam: drag on the game view (anywhere the controls aren't) to look around
@@ -459,6 +459,7 @@ class Game {
 
   respawn(home, quiet) {
     const p = this.phys, h = this.city.spots.home;
+    if (this.cut) { this.cut = null; if (this.cutCop) this.cutCop.group.visible = false; }
     this._footUI(false); this._tricksOff();
     this.rider.endRagdoll(this.model.group);
     const s = !home && this.safe.length ? this.safe[Math.max(0, this.safe.length - 3)] : null;
@@ -466,6 +467,52 @@ class Game {
     if (home) this.cops.reset(h.x, h.z);
     this.rig.snap = true; this.respawnGrace = 1.5;
     if (!quiet) this.audio.ui();
+  }
+
+  // ---- busted: a short scene before the respawn ---------------------------------
+  _startBust() {
+    const p = this.phys, T = this.terrain;
+    let x, z, yaw = p.yaw;
+    if (this.foot) { x = this.foot.x; z = this.foot.z; yaw = this.foot.yaw; }
+    else if (p.crashed) { x = p.rag.x; z = p.rag.z; }
+    else { x = p.x - Math.cos(yaw) * 0.85; z = p.z + Math.sin(yaw) * 0.85; p.vx = 0; p.vz = 0; } // step off beside the bike
+    this._tricksOff();
+    this.rider.setFirstPerson(false);
+    this.rider.beginWalk(this.scene);
+    const f = { x, y: T.height(x, z), z, yaw, speed: 0, phase: 0, rise: 1, cuffed: true };
+    // the arresting officer, a step behind with a hand on your shoulder
+    if (!this.cutCop) { this.cutCop = new Rider({ hoodie: 0x1c2d5a, pants: 0x151a2a, shoes: 0x111111, gloves: 0x111111, helmet: 0x1c2d5a, visor: 0x101216, skin: 0xd8a47c, pack: 0x1c2d5a }); this.cutCop.beginWalk(this.scene); }
+    const cx = x - Math.sin(yaw) * 0.62 + Math.cos(yaw) * 0.3, cz = z - Math.cos(yaw) * 0.62 - Math.sin(yaw) * 0.3;
+    this.cutCop.group.visible = true;
+    this.cut = { t: 0, dur: 3.8, f, cop: { x: cx, y: T.height(cx, cz), z: cz, yaw: yaw + 0.25, speed: 0, phase: 0, rise: 1 }, a0: yaw + Math.PI * 0.8 };
+    this.touch.show(false);
+  }
+
+  _bustScene(dt, st) {
+    const c = this.cut, f = c.f, cam = this.camera, input = this.input;
+    c.t += dt;
+    // nothing to steer: only "skip" is listened for
+    const skip = (input.take('confirm') || input.take('reset')) && c.t > 0.7;
+    for (const a of ['camera', 'mute', 'time', 'garage', 'map', 'burn', 'mount']) input.take(a);
+    this.rider.updateWalk(dt, f); this.cutCop.updateWalk(dt, c.cop);
+    // the camera circles once around the pair, pulling in if a wall is in the way
+    const ang = c.a0 + c.t * 1.55;
+    let d = 4.3, px = f.x + Math.sin(ang) * d, pz = f.z + Math.cos(ang) * d;
+    for (let k = 0; k < 5 && this.rig._blocked(px, pz); k++) { d *= 0.78; px = f.x + Math.sin(ang) * d; pz = f.z + Math.cos(ang) * d; }
+    cam.position.set(px, Math.max(f.y + 1.75, this.terrain.height(px, pz) + 0.5), pz);
+    cam.lookAt(f.x, f.y + 1.15, f.z);
+    if (Math.abs(cam.fov - 48) > 0.05) { cam.fov += (48 - cam.fov) * Math.min(1, dt * 5); cam.updateProjectionMatrix(); }
+    // the world carries on, and the cruisers that caught you sit there with their lights going
+    this.traffic.update(dt, f, this.cops.units);
+    const on = Math.floor(this.time * 6) % 2 === 0;
+    for (const u of this.cops.units) if (u.car && Math.hypot(u.x - f.x, u.z - f.z) < 70) { u.mesh.red.visible = on; u.mesh.blue.visible = !on; }
+    this.sky.update(f.x, f.y, f.z);
+    this.lamp.intensity = 0;
+    const spec = this.model.spec, cp = this.cops;
+    this.audio.update(dt, { speed: 0, wheelSpeed: 0, topSpeed: spec.drive.topSpeed, throttle: 0, electric: spec.drive.type === 'electric', big: spec.variant === 'varg', grounded: true, surface: 0, skid: false, siren: 0.55, heli: 0, active: false });
+    this.hud.update(dt, { speed: 0, units: st.units, cash: this.save.cash, heat: 0, wanted: false, seen: false, hidden: false, evade: 0, suspicion: 0, watcher: null, bust: 0,
+      combo: this.tricks.combo, label: this.tricks.label, zone: 0, wheelie: { show: false, pitch: 0, bp: 1, loop: spec.loopAngle } });
+    if (c.t >= c.dur || skip) { for (const u of cp.units) if (u.car) { u.mesh.red.visible = false; u.mesh.blue.visible = false; } this.respawn(true); this._updateControlsMode(); }
   }
 
   // ---- main loop ------------------------------------------------------------
@@ -527,6 +574,7 @@ class Game {
 
     // ---- one-shot actions
     if (input.take('pause')) { this.pause(); return; }
+    if (this.cut) { this._bustScene(dt, st); return; }
     if (input.take('camera')) { const m = this.rig.next(); st.camera = m.id; this.save.persist(); hud.camName(m.label); if (m.id === 'move') hud.hint(this.touchOn ? 'Move cam: drag anywhere on the screen to look around' : 'Move cam: hold the mouse button and drag to look around · right stick on a gamepad', 4); }
     if (s.look) this.rig.lookBy(s.look * dt * 420, 0);
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }

@@ -140,8 +140,9 @@ export class Rider {
     g.position.set(f.x, f.y, f.z); g.rotation.set(0, f.yaw, 0);
     const bob = Math.abs(Math.sin(f.phase)) * 0.035 * sp;
     this.torso.position.set(0, 0.34 + 0.56 * up + bob, -0.1 * (1 - up));
-    this.torso.rotation.set(0.06 + sp * 0.16 + (1 - up) * 0.9, Math.sin(f.phase) * 0.12 * sp, 0, 'YXZ');
-    this.head.rotation.set(-(1 - up) * 0.6 - sp * 0.1, 0, 0);
+    const cuffed = !!f.cuffed; // hands held behind the back, head down
+    this.torso.rotation.set(0.06 + sp * 0.16 + (1 - up) * 0.9 + (cuffed ? 0.1 : 0), Math.sin(f.phase) * 0.12 * sp, 0, 'YXZ');
+    this.head.rotation.set(cuffed ? 0.32 : -(1 - up) * 0.6 - sp * 0.1, 0, 0);
     this.torso.updateMatrix();
     for (let s = 0; s < 2; s++) {
       const sx = s === 0 ? 1 : -1, a = f.phase + (s ? Math.PI : 0), dir = f.speed < 0 ? -1 : 1;
@@ -155,8 +156,8 @@ export class Rider {
       l.foot.position.copy(l.end); l.foot.position.z += 0.06; l.foot.position.y -= 0.03; l.foot.rotation.set(0, 0, 0);
       const ar = this.arm[s];
       ar.root.set(sx * SHOULDER_W, TORSO - 0.04, 0).applyMatrix4(this.torso.matrix);
-      ar.target.copy(ar.root); ar.target.x += sx * 0.07; ar.target.y -= 0.5 - sp * 0.08; ar.target.z += 0.06 - Math.cos(a) * 0.26 * sp * dir + (1 - up) * 0.3;
-      _p.set(sx * 0.4, -0.2, -1);
+      if (cuffed) { ar.target.set(sx * 0.045, 0.1, -0.2).applyMatrix4(this.torso.matrix); _p.set(sx * 1.2, 0.1, -1); }
+      else { ar.target.copy(ar.root); ar.target.x += sx * 0.07; ar.target.y -= 0.5 - sp * 0.08; ar.target.z += 0.06 - Math.cos(a) * 0.26 * sp * dir + (1 - up) * 0.3; _p.set(sx * 0.4, -0.2, -1); }
       ik(ar.root, ar.target, L_UPPER, L_FORE, _p, ar.mid, ar.end);
       seg(ar.up, ar.root, ar.mid); seg(ar.fore, ar.mid, ar.end);
       ar.hand.position.copy(ar.end); ar.hand.quaternion.copy(ar.fore.quaternion);
