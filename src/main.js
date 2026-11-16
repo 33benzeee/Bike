@@ -609,7 +609,7 @@ class Game {
         hud.banner(msg, '', 'yel', 2);
       }
     }
-    const sm = st.assist === 0 ? 1.4 : st.assist === 2 ? 0.6 : 1;
+    const sm = st.assist === 0 ? 1.4 : st.assist === 0.5 ? 1.2 : st.assist === 2 ? 0.6 : 1;
     this.tricks.scoreMult = sm; this.tricks.heatMult = this.cops.wanted ? 1 + 0.25 * this.cops.heat : 1;
     this.tricks.update(dt, p, w, spec);
     p.events.length = 0;

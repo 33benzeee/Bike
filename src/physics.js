@@ -10,6 +10,9 @@ import { SURF_GRIP, SURF_ROLL, circleVsObstacle } from './world/terrain.js';
 export const G = 9.81;
 const SUB = 1 / 240;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+// semi-sim wheelie feel: liveliness vs Normal, throttle left past the balance point, and how
+// much of the fall backwards the rider catches
+const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 const wc = { hc: 0, ns: 0, ny: 1, surface: 0 };
@@ -162,11 +165,15 @@ export class BikePhysics {
     if (this.frontContact && this.frontIn > bF) bF = this.frontIn; // front lever: front wheel only, never the rear
     if (burn) { bF = 1; bR = 0; }
     this.assistBrake = 0;
-    // Rider "wrist" layer. 0 = raw sim, 1 = shaped throttle, 2 = shaped + auto balance.
+    // Rider "wrist" layer. 0 = raw sim, 0.5 = semi-sim, 1 = shaped throttle, 2 = shaped + auto
+    // balance. Semi-sim keeps Normal's manners everywhere except in a pulled wheelie, where the
+    // bike is livelier and the rider only half-catches it past the balance point: it goes
+    // over if you stay on the gas, but slowly enough to save with the brake.
     // In a wheelie the throttle asks for the force that holds the current angle plus
     // a bike-specific surplus, so a digital key is still controllable — punchier
     // bikes get a bigger surplus and are easier to loop.
     let driveCap = Infinity;
+    const semi = assist > 0 && assist < 1;
     if (assist > 0) {
       if (this.rearContact && !this.frontContact) {
         const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
@@ -185,9 +192,10 @@ export class BikePhysics {
           driveCap = F; th = 1;
         } else if (th > 0) {
           // surplus fades as the bike approaches its rotation-rate limit
-          let surplus = sp.wheelieGain * (1 - this.pitchVel / sp.wheelieRate);
+          const live = semi ? SEMI.live : 1;
+          let surplus = sp.wheelieGain * live * (1 - this.pitchVel / (sp.wheelieRate * live));
           // past the balance point the rider is already rolling off
-          if (xc < 0) surplus *= 0.12;
+          if (xc < 0) surplus *= semi ? SEMI.past : 0.12;
           // not pulled up on purpose: float a low power-wheelie instead of looping
           if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
           driveCap = Math.max(0, th * (Fhold + (surplus * Ie) / yc)); th = 1;
@@ -390,7 +398,7 @@ export class BikePhysics {
         // past the balance point the rider instinctively shifts forward, which
         // slows the fall backwards enough to catch it with the brake
         const xc = cx * ct - cy * st;
-        if (xc < 0) { tq += 0.7 * m * G * xc; if (this.pitchVel > 0) tq -= this.pitchVel * I * 1.6; }
+        if (xc < 0) { tq += (semi ? SEMI.catch : 0.7) * m * G * xc; if (this.pitchVel > 0) tq -= this.pitchVel * I * (semi ? SEMI.damp : 1.6); }
       }
       // tail on the tarmac: it props the bike up like a spring and drags
       this.scraping = rearC && !frontC && this.pitch > sp.loopAngle - 0.06;

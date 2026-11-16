@@ -375,7 +375,7 @@ export class Menus {
     return `<div class="screen center"><div class="col panel">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">SETTINGS</div></div>
       <div class="scroll">
-        ${row('RIDING ASSIST', 'Easy auto-balances wheelies (lower score). Sim is raw physics for analog throttles (bonus score).', seg('assist', [[2, 'Easy x0.6'], [1, 'Normal'], [0, 'Sim x1.4']]))}
+        ${row('RIDING ASSIST', 'Easy auto-balances wheelies. Normal catches you at the balance point. Semi-sim does not hold you there but goes over slowly enough to save. Sim is raw.', seg('assist', [[2, 'Easy x0.6'], [1, 'Normal'], [0.5, 'Semi-sim x1.2'], [0, 'Sim x1.4']]))}
         ${row('TIME OF DAY', '', seg('time', Object.entries(TIMES).map(([k, t]) => [k, t.label])))}
         ${row('CAMERA', 'Switch any time while riding.', seg('camera', CAM_MODES.map((m) => [m.id, m.label])))}
         ${row('SPEED UNITS', '', seg('units', [['mph', 'mph'], ['kmh', 'km/h']]))}

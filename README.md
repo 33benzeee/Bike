@@ -57,8 +57,9 @@ wall? Hold brake to paddle backwards.
 
 - **Physics** — the bike and rider are a rigid body on two sprung wheels with tyre forces
   at the contact patches. Wheelies, stoppies, loop-outs, squat, dive, kerb hits and jumps
-  all come out of the simulation rather than being scripted. Three assist levels: *Easy*
-  (auto-balance), *Normal* (shaped throttle, still skill-based) and *Sim* (raw).
+  all come out of the simulation rather than being scripted. Four assist levels: *Easy*
+  (auto-balance), *Normal* (shaped throttle, catches you at the balance point), *Semi-sim*
+  (no catch, but it goes over slowly enough to save) and *Sim* (raw).
 - **Eight bikes** — Wheelie Bike, Trail MTB, Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
