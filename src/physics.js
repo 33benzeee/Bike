@@ -12,6 +12,7 @@ const SUB = 1 / 240;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // semi-sim wheelie feel: liveliness vs Normal, throttle left past the balance point, and how
 // much of the fall backwards the rider catches
+const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
@@ -393,9 +394,16 @@ export class BikePhysics {
       this.pullT -= h;
     }
     if (!any) {
-      // body english in the air, plus a gentle self-levelling when hands-off
-      tq += inp.lean * I * 7.5;
-      if (this.airTime > 0.2) tq += (this.effThrottle - this.brakeIn) * I * 0.7;
+      // Body english in the air. Leaning asks for a rotation *rate*, it doesn't keep winding
+      // the bike up: the spin builds to a steady speed in about a quarter of a second and
+      // from then on the angle changes linearly. Let go and it carries on at that speed.
+      if (Math.abs(inp.lean) > 0.05) {
+        const d = inp.lean * AIR_RATE - this.pitchVel;
+        // only ever push towards the asked-for rate, never speed up a faster spin
+        if (d * inp.lean > 0) tq += I * clamp(d * 14, -22, 22);
+      }
+      // throttle and brake nudge the pitch through the rear wheel, but only up to a slow turn
+      if (this.airTime > 0.2) { const k = this.effThrottle - this.brakeIn; tq += k * I * 0.7 * clamp(1 - (this.pitchVel * Math.sign(k)) / 1.2, 0, 1); }
       if (Math.abs(inp.lean) < 0.15 && assist > 0 && this.airTime > 0.06 && Math.abs(this.pitch) < 1.3) {
         tq += I * (-12 * (this.pitch - 0.05) - 5.5 * this.pitchVel);
       }
