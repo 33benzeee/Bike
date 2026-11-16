@@ -259,7 +259,15 @@ export class BikePhysics {
           // measured from the ground under the wheel, so a compressed fork on a
           // ramp isn't mistaken for hitting a wall
           const hc = T.height(wx, wz), top = Math.max(wy, hc + r * 0.9) + 0.03;
-          if (hc <= wy + 0.03 && T.height(wx + hx * dir * reach, wz + hz * dir * reach) <= top && T.height(wx + hx * dir * reach * 0.5, wz + hz * dir * reach * 0.5) <= top) break;
+          const ahead = (f) => T.height(wx + hx * dir * reach * f, wz + hz * dir * reach * f);
+          const h1 = ahead(1), hm = ahead(0.5);
+          if (hc <= wy + 0.03 && h1 <= top && hm <= top) break;
+          // a steep but smooth face (quarter pipe, bank) is there to be ridden up: only a
+          // near-vertical step, steeper than about 63 degrees, counts as a wall
+          if (hc <= wy + 0.03) {
+            const q1 = ahead(0.25), q3 = ahead(0.75);
+            if (Math.max(q1 - hc, hm - q1, q3 - hm, h1 - q3) < reach * 0.5) break;
+          }
           const back = r * 0.2 * dir;
           wx -= hx * back; wz -= hz * back; this.x -= hx * back; this.z -= hz * back; hit = true;
         }

@@ -68,15 +68,16 @@ wall? Hold brake to paddle backwards.
   in the air (Superman, Can-Can…). Chain them before the timer runs out to bank cash.
 - **City** — an 8×8-block island: downtown towers with alleys, a park with hills, a dirt
   jump park, a skate plaza, a construction site with container gaps, a civic plaza with
-  stair sets, and the Wheelie Works shop. Traffic obeys lights; cars brake for you.
+  stair sets, a concrete skate park (half-pipe, roll-in, funbox, quarter wall, spine) and
+  the Wheelie Works shop. Traffic obeys lights; cars brake for you.
 - **Cops** — patrols notice wheelies, speeding and e-motos. Five heat levels escalate from
   one cruiser to backup, roadblocks, bike cops that follow you through alleys, and a
   helicopter. Break line of sight and stay hidden to escape for a payout. Dawdle or walk
   near a cruiser and it pulls up short, an officer jumps out and runs you down.
 - **Progression** — cash from combos, escapes, jobs, races and 25 challenges buys bikes
   and customisation. Progress saves in the browser.
-- **Delivery jobs** — stop in an orange ring outside one of six restaurants to pick up an
-  order, then race the clock to the drop-off. Faster drops tip more, wheelies on the way
+- **Delivery jobs** — stop in an orange ring outside one of six restaurants and accept the
+  prompt to pick up an order, then race the clock to the drop-off. Faster drops tip more, wheelies on the way
   add a bonus, crashes damage the order, and deliveries in a row build a streak.
 - **Races and wheelie runs** — four checkpoint races (blue rings) and two 60-second
   longest-wheelie runs (pink rings), each with bronze, silver and gold targets.

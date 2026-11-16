@@ -12,7 +12,7 @@ export const WALK = 4;
 export const EDGE = (N / 2) * PITCH + ROAD_HALF; // outer kerb of the ring road
 export const roadC = (i) => (i - N / 2) * PITCH;
 
-// L lowrise, M midrise, T towers, K park, D dirt jumps, S skate plaza,
+// L lowrise, M midrise, T towers, K park, D dirt jumps, S skate plaza, R skate park,
 // P parking, C construction, V civic plaza, H home / bike shop
 const LAYOUT = [
   'LMMPMMLC',
@@ -21,7 +21,7 @@ const LAYOUT = [
   'PMKKTVTM',
   'MTTSTTMP',
   'LMTTHMDL',
-  'MMPMMMMM',
+  'MMPMRMMM',
   'CLMMLPML',
 ];
 
@@ -316,7 +316,7 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
       lamp(cx + t, z0 + 0.7, Math.PI); lamp(cx + t, z1 - 0.7, 0);
       lamp(x0 + 0.7, cz + t, -Math.PI / 2); lamp(x1 - 0.7, cz + t, Math.PI / 2);
     }
-    if (type !== 'T' && type !== 'P' && type !== 'C') {
+    if (type !== 'T' && type !== 'P' && type !== 'C' && type !== 'R') {
       for (const t of [-28, -8, 8, 28]) {
         if (rnd() < 0.7) tree(cx + t, z0 + 1.3, 0.8); if (rnd() < 0.7) tree(cx + t, z1 - 1.3, 0.8);
         if (rnd() < 0.7) tree(x0 + 1.3, cz + t, 0.8); if (rnd() < 0.7) tree(x1 - 1.3, cz + t, 0.8);
@@ -495,6 +495,78 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     for (const [bx, bz] of [[cx - 28, cz], [cx + 2, cz + 28], [cx - 2, cz - 28]]) bench(bx, bz, bx === cx - 28 ? Math.PI / 2 : 0);
   }
 
+  // Concrete skate park across the street from the shops: a mini half-pipe, a roll-in tower
+  // feeding a funbox and a big quarter wall, a step-up, a spine, banks, rollers, ledges and rails.
+  function skatePark(x0, z0, x1, z1) {
+    const ix0 = x0 + WALK, iz0 = z0 + WALK, ix1 = x1 - WALK, iz1 = z1 - WALK;
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const C = { base: CURB, surface: SURF.concrete, color: 0xb7b0a2, side: 0x8c8679 };
+    const DECK = 0xa29c8f, STEEL = 0x6f747b, PAINT = 0xd9a11a;
+    B.walk.color(0xc9c6bd).flat(ix0, iz0, ix1, iz1, CURB + 0.004, 6);
+    // a curved transition: an arc of radius R up to height h, then a flat deck
+    const arc = (R, h, n = 8) => { const top = Math.acos(1 - h / R), pts = []; for (let k = 0; k <= n; k++) { const t = (top * k) / n; pts.push([R * Math.sin(t), R * (1 - Math.cos(t))]); } return pts; };
+    const quarter = (x, z, dx, dz, halfW, R, h, deck, n = 8) => {
+      const pts = arc(R, h, n), L = pts[pts.length - 1][0];
+      ramp(x, z, dx, dz, halfW, [...pts, [L + deck, h]], C);
+      // steel coping along the lip
+      const [lx, lz] = [x + dx * L, z + dz * L];
+      B.props.color(STEEL).box(lx, CURB + h - 0.04, lz, dx ? 0.14 : halfW * 2, 0.1, dx ? halfW * 2 : 0.14);
+    };
+    const spine = (x, z, dx, dz, halfW, R, h) => {
+      const up = arc(R, h), L = up[up.length - 1][0];
+      ramp(x, z, dx, dz, halfW, [...up, ...up.slice(0, -1).reverse().map(([l, hh]) => [2 * L - l, hh])], C);
+      B.props.color(STEEL).box(x + dx * L, CURB + h - 0.04, z + dz * L, dx ? 0.14 : halfW * 2, 0.1, dx ? halfW * 2 : 0.14);
+    };
+
+    // ---- west line: mini half-pipe, with a kicker gap above it and rollers below
+    quarter(cx - 22, cz - 8, 0, -1, 6, 3.6, 1.6, 3);
+    quarter(cx - 22, cz + 8, 0, 1, 6, 3.6, 1.6, 3);
+    kicker(cx - 27, cz - 16.4, 1, 0, 3, 1.0, 1.6, C);
+    ramp(cx - 20.5, cz - 16.4, 1, 0, 1.8, [[0, 0.8], [3.5, 0]], C);
+    for (let k = 0; k < 3; k++) ramp(cx - 22, cz + 17 + k * 4.5, 0, 1, 4, [[0, 0], [2.2, 0.5], [4.4, 0]], { ...C, smooth: true });
+
+    // ---- centre line: roll-in tower, funbox, big quarter wall
+    platform(cx - 4, cz - 30, cx + 4, cz - 24, 2.4, DECK);
+    ramp(cx - 16, cz - 27, 1, 0, 3, [[0, 0], [12, 2.4]], C); // the way up
+    ramp(cx, cz - 24, 0, 1, 4, [[0, 2.4], [6, 0]], { ...C, smooth: true, color: PAINT });
+    platform(cx - 3, cz - 2, cx + 3, cz + 2, 1.0, DECK);
+    ramp(cx, cz - 7, 0, 1, 3, [[0, 0], [5, 1.0]], C);
+    ramp(cx, cz + 2, 0, 1, 3, [[0, 1.0], [5, 0]], C);
+    ramp(cx - 8, cz, 1, 0, 2, [[0, 0], [5, 1.0]], C);
+    ramp(cx + 3, cz, 1, 0, 2, [[0, 1.0], [5, 0]], C);
+    platform(cx + 2.76, cz + 2, cx + 3, cz + 7, 1.0, STEEL, SURF.metal); // rail off the edge of the box
+    quarter(cx, cz + 21, 0, 1, 10, 6.2, 2.2, 3.5, 12);
+
+    // ---- east line: step-up, spine, ledge and rail, bank on the wall
+    kicker(cx + 20, cz - 24, 0, 1, 3.5, 1.1, 2, C);
+    platform(cx + 17, cz - 17.5, cx + 23, cz - 11.5, 1.1, DECK);
+    ramp(cx + 20, cz - 11.5, 0, 1, 3, [[0, 1.1], [5, 0]], C);
+    spine(cx + 20, cz + 3.2, 0, 1, 5, 3.2, 1.3);
+    platform(cx + 14, cz + 12, cx + 24, cz + 14.4, 0.35, DECK);
+    platform(cx + 14, cz + 18, cx + 24, cz + 18.25, 0.45, STEEL, SURF.metal);
+    ramp(cx + 26, cz + 16, 1, 0, 12, [[0, 0], [4, 1.5], [5.5, 1.5]], { ...C, smooth: true });
+
+    // ---- low wall round the park, with a gap on every side
+    for (const [a, b, c, d] of [[ix0, iz0, cx + 6, iz0], [cx + 14, iz0, ix1, iz0], [ix0, iz1, cx + 14, iz1], [cx + 22, iz1, ix1, iz1],
+      [ix0, iz0, ix0, cz - 3], [ix0, cz + 3, ix0, iz1], [ix1, iz0, ix1, cz - 9], [ix1, cz - 3, ix1, iz1]]) fence(a, b, c, d, 1.0, 0x8f8b82);
+    // gateway sign over the north entrance, readable from both sides
+    const gx = cx + 10, gy = CURB + 4.3;
+    for (const px of [gx - 4.6, gx + 4.6]) { B.props.color(0x2a2d33).box(px, CURB, iz0, 0.3, 5.2, 0.3); terrain.addCircle(px, iz0, 0.2, 0, CURB + 5.2); }
+    const tex = canvasTexture(512, (ctx, sz) => {
+      ctx.fillStyle = '#15171c'; ctx.fillRect(0, 0, sz, sz);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffd21f'; ctx.font = 'italic 900 150px system-ui, Arial, sans-serif'; ctx.fillText('SKATE', sz / 2, sz * 0.3);
+      ctx.fillStyle = '#ffffff'; ctx.fillText('PARK', sz / 2, sz * 0.72);
+    }, { repeat: false });
+    for (const rot of [0, Math.PI]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(8.9, 1.8), new THREE.MeshBasicMaterial({ map: tex }));
+      m.position.set(gx, gy, iz0 + (rot ? -0.02 : 0.02)); m.rotation.y = rot; group.add(m);
+    }
+    bench(cx + 29, cz - 20, Math.PI / 2); bench(cx - 10, cz + 29.5, 0); bench(cx + 10, cz - 14, 0);
+    tree(ix0 + 2.5, iz1 - 2.5); tree(ix1 - 2.5, iz0 + 2.5);
+    spots.skate = { x: cx, z: cz };
+  }
+
   function parking(x0, z0, x1, z1) {
     const ix0 = x0 + WALK, iz0 = z0 + WALK, ix1 = x1 - WALK, iz1 = z1 - WALK;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
@@ -646,7 +718,7 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     spots.home = { x: cx, z: z1 + 5.5, yaw: Math.PI / 2 };
   }
 
-  const kinds = { L: lowrise, M: midrise, K: park, D: dirtPark, S: skatePlaza, P: parking, C: construction, V: civic, H: home };
+  const kinds = { L: lowrise, M: midrise, K: park, D: dirtPark, S: skatePlaza, R: skatePark, P: parking, C: construction, V: civic, H: home };
   for (let j = 0; j < N; j++) {
     for (let i = 0; i < N; i++) {
       const type = LAYOUT[j][i];

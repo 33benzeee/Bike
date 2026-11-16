@@ -304,9 +304,17 @@ body.onfoot #t-stoppie { display: none; }
 .race .m.m3 { color: var(--yel); } .race .m.m2 { color: #cfd6e0; } .race .m.m1 { color: #d08a4a; } .race .m.m0 { color: var(--dim); }
 .race .d { grid-column: 1 / -1; font: 12px/1.35 system-ui, sans-serif; color: var(--dim); }
 .season, .race { margin-bottom: 6px; }
+#ask { z-index: 5; position: absolute; left: 50%; top: calc(20% + var(--sat)); transform: translateX(-50%); background: var(--panel); border-top: 4px solid #ff8a1f; padding: 9px 14px 11px; text-align: center; min-width: 230px; max-width: min(84vw, 420px); }
+#ask[data-k="race"] { border-color: #3fa9ff; } #ask[data-k="wheelie"] { border-color: #ff4fd8; }
+#ask .at { font-size: clamp(16px, 3.6vh, 24px); font-style: italic; }
+#ask .as { font: 600 12px/1.35 system-ui, sans-serif; color: var(--dim); letter-spacing: 0; margin: 2px 0 8px; }
+#ask .ab { display: flex; gap: 8px; justify-content: center; }
+#ask button { pointer-events: auto; touch-action: manipulation; font: 800 calc(14px * var(--u)) var(--font); letter-spacing: 0.05em; padding: calc(8px * var(--u)) calc(16px * var(--u)); background: rgba(255, 255, 255, 0.14); color: #fff; }
+#ask #ask-yes { background: var(--grn); color: #000; }
 @media (max-height: 430px) {
   /* short phones: the main menu goes two-up so every entry stays on screen */
   .menu { display: grid; grid-template-columns: 1fr 1fr; width: min(600px, 92vw); } .menu .primary { grid-column: 1 / -1; }
+  #ask { top: calc(13% + var(--sat)); padding: 6px 12px 8px; } #ask .as { margin-bottom: 5px; }
   #job .js { display: none; } #job .jc { font-size: 20px; } #job { padding: 3px 9px 4px; min-width: 150px; }
 }
 

@@ -76,6 +76,10 @@ export class Jobs {
     this.pEl = { t: this.panel.querySelector('.jt'), c: this.panel.querySelector('.jc'), s: this.panel.querySelector('.js') };
     this.nearEl = document.getElementById('sprk'); this.nearBar = this.nearEl.querySelector('b');
     this._txt = ['', '', ''];
+    // "do you want this one?" prompt shown while you sit in a start ring
+    this.ask = null; this.askEl = document.getElementById('ask');
+    const tap = (id, fn) => document.getElementById(id).addEventListener('click', (e) => { fn(); e.currentTarget.blur(); });
+    tap('ask-yes', () => this.confirm()); tap('ask-no', () => this.decline());
 
     // ---- stations: stop in the ring to start
     this.stations = [];
@@ -221,8 +225,37 @@ export class Jobs {
     for (let i = 0; i < 3; i++) if (v[i] !== this._txt[i]) { this._txt[i] = v[i]; el[i].textContent = v[i]; }
   }
 
+  // ---- the start prompt --------------------------------------------------------
+  _prompt(s) {
+    const g = this.g, el = this.askEl, r = s.def, mode = g.input.mode;
+    this.ask = s;
+    el.dataset.k = s.kind === 'food' ? 'delivery' : r.wheelie ? 'wheelie' : 'race';
+    el.querySelector('.at').textContent = s.kind === 'food' ? 'DELIVERY JOB' : r.name.toUpperCase();
+    el.querySelector('.as').textContent = s.kind === 'food' ? `${r.name} has an order ready. Take it?`
+      : r.wheelie ? `Wheelie run · longest wheelie in ${WHEELIE_TIME} s · gold at ${this._dist(r.goals[2])}`
+        : `Checkpoint race · ${this._dist(r.len)} · gold in ${clock(r.goals[2])}`;
+    document.getElementById('ask-yes').textContent = (s.kind === 'food' ? 'TAKE ORDER' : 'START') + (mode === 'keyboard' ? ' · ENTER' : mode === 'gamepad' ? ' · A' : '');
+    el.classList.remove('hidden');
+    g.audio.ui();
+  }
+
+  _unprompt() { if (this.ask) { this.ask = null; this.askEl.classList.add('hidden'); } }
+
+  // the player said yes (button, Enter, or A on a gamepad)
+  confirm() {
+    const s = this.ask;
+    if (!s || this.mode || this.g.state !== 'play') return false;
+    this._unprompt();
+    if (s.kind === 'food') { this.lock = s; this._startDelivery(s); } else this._startRace(s);
+    return true;
+  }
+
+  // "not now": leave this ring alone until the player rides out of it and back
+  decline() { const s = this.ask; if (!s) return; this._unprompt(); this.lock = s; }
+
   // ---- lifecycle --------------------------------------------------------------
   _begin(mode, job) {
+    this._unprompt();
     this.mode = mode; this.job = job;
     this.panel.classList.remove('hidden'); this.panel.dataset.k = mode;
     this.g.hud.extra.target = null; this._pois();
@@ -236,7 +269,7 @@ export class Jobs {
   }
 
   // quietly drop whatever is running (quit to title, shop, reset)
-  cancel() { if (this.mode) { if (this.mode === 'delivery') this.streak = 0; this._end(); } }
+  cancel() { this._unprompt(); if (this.mode) { if (this.mode === 'delivery') this.streak = 0; this._end(); } }
 
   // the player gave up from the pause menu
   abandon() {
@@ -381,12 +414,16 @@ export class Jobs {
         if (this.lock === s) { if (d > s.r + 3) this.lock = null; continue; }
         if (d > s.r || this.lock) continue;
         if (onFoot || p.crashed) { if (this._warn !== s) { this._warn = s; g.hud.hint('Get on your bike to start', 2.5); } continue; }
-        if (sp > 5 || p.airTime > 0) { if (this._warn !== s && sp > 5) { this._warn = s; g.hud.hint('Slow down inside the ring to start', 2.5); } continue; }
+        if (this.ask === s) continue;
+        if (sp > 5 || p.airTime > 0) continue; // just passing through
         if (s.kind === 'race' && g.cops.wanted) { if (this._warn !== s) { this._warn = s; g.hud.hint('Lose the cops before you race', 2.5); } continue; }
         this._warn = null;
-        if (s.kind === 'food') { this.lock = s; this._startDelivery(s); } else this._startRace(s);
+        this._prompt(s); // nothing starts until the player says so
         break;
       }
+      // the offer goes away if you leave the ring (or can no longer take it)
+      const a = this.ask;
+      if (a && (Math.hypot(pp.x - a.x, pp.z - a.z) > a.r + 1.5 || onFoot || p.crashed || (a.kind === 'race' && g.cops.wanted))) this._unprompt();
       if (this._warn && Math.hypot(pp.x - this._warn.x, pp.z - this._warn.z) > this._warn.r + 3) this._warn = null;
       return;
     }

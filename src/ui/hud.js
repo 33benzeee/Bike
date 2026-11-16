@@ -2,7 +2,7 @@
 import { EDGE, WALK, N, PITCH, roadC } from '../world/city.js';
 
 const $ = (id) => document.getElementById(id);
-const MAP_COL = { L: '#6f6a62', M: '#77736c', T: '#5d6876', K: '#4f8a44', D: '#9a7448', S: '#a9a59b', P: '#55585f', C: '#8a6a3c', V: '#b9b4a6', H: '#d9b21c' };
+const MAP_COL = { L: '#6f6a62', M: '#77736c', T: '#5d6876', K: '#4f8a44', D: '#9a7448', S: '#a9a59b', R: '#c9c6bd', P: '#55585f', C: '#8a6a3c', V: '#b9b4a6', H: '#d9b21c' };
 export const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 export class Hud {
@@ -161,6 +161,7 @@ export class Hud {
     for (const q of ex.pois) { if (clampR && !place(q.x, q.z, false)) continue; badge(q.x, q.z, q.color, q.letter); }
     if (this.spots.dealer) badge(this.spots.dealer.x, this.spots.dealer.z, '#ffd21f', '$');
     if (this.spots.customs) badge(this.spots.customs.x, this.spots.customs.z, '#34d17a', 'C');
+    if (this.spots.skate && !clampR) badge(this.spots.skate.x, this.spots.skate.z, '#e8e4d8', 'P');
     wps.forEach((w, i) => badge(w.x, w.z, '#ff4fd8', String(i + 1)));
     if (ex.target) badge(ex.target.x, ex.target.z, ex.target.color, ex.target.letter);
     const blink = Math.floor(this._blink * 5) % 2 === 0;

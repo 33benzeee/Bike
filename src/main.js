@@ -399,6 +399,7 @@ class Game {
     const big = this.hud._big, sp = this.city.spots, ex = this.hud.extra;
     const reach = (22 * Math.max(1, document.getElementById('bigmap').width / 700)) / big.sc; // a bit more than the badge, in metres
     const marks = [{ x: sp.dealer.x, z: sp.dealer.z, name: 'Dealership' }, { x: sp.customs.x, z: sp.customs.z, name: 'Customs' }, ...ex.pois];
+    if (sp.skate) marks.push({ x: sp.skate.x, z: sp.skate.z, name: 'the skate park' });
     if (ex.target) marks.push({ x: ex.target.x, z: ex.target.z, name: 'your job target' });
     let hit = null, best = reach;
     for (const m of marks) { const d = Math.hypot(m.x - w.x, m.z - w.z); if (d < best) { best = d; hit = m; } }
@@ -544,7 +545,7 @@ class Game {
       else { this.tricks.crash(); this.respawn(false); }
     }
     if (input.take('mount')) this._mount();
-    input.take('confirm');
+    if (input.take('confirm')) this.jobs.confirm();
 
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
     const w = this.rider.w, tk = this.trickOn;
