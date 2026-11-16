@@ -12,6 +12,16 @@ const SUB = 1 / 240;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // semi-sim wheelie feel: liveliness vs Normal, throttle left past the balance point, and how
 // much of the fall backwards the rider catches
+// Spring and damper for one wheel. Deep in the travel, and against the bump stop, the rebound
+// is heavily damped: arms, legs and tyres soak a big landing up instead of the bike pogoing
+// back into the air. Around ride height it is the plain progressive spring it always was.
+const LAND = { from: 0.55, rebound: 9, stop: 1.3 };
+function springForce(k, c, travel, pen, vn, m) {
+  const x = pen / travel, deep = Math.max(0, x - LAND.from);
+  let F = k * pen * (1 + 1.2 * x * x) - c * vn * (vn > 0 ? 1.6 + LAND.rebound * deep * deep : 1);
+  if (pen > travel) F += k * 10 * (pen - travel) - LAND.stop * Math.sqrt(k * 10 * m * 0.5) * vn;
+  return F;
+}
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -291,9 +301,7 @@ export class BikePhysics {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
         const vs = u - this.pitchVel * ryR, vv = vy + this.pitchVel * rsR;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
-        const xr = pen / su.tR;
-        let Fn = su.kR * pen * (1 + 1.2 * xr * xr) - su.cR * vn * (vn > 0 ? 1.6 : 1);
-        if (pen > su.tR) Fn += su.kR * 10 * (pen - su.tR);
+        let Fn = springForce(su.kR, su.cR, su.tR, pen, vn, m);
         Fn = clamp(Fn, 0, m * G * 14);
         let g = SURF_GRIP[wc.surface];
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);
@@ -332,9 +340,7 @@ export class BikePhysics {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
         const vs = u - this.pitchVel * ryF, vv = vy + this.pitchVel * rsF;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
-        const xf = pen / su.tF;
-        let Fn = su.kF * pen * (1 + 1.2 * xf * xf) - su.cF * vn * (vn > 0 ? 1.6 : 1);
-        if (pen > su.tF) Fn += su.kF * 10 * (pen - su.tF);
+        let Fn = springForce(su.kF, su.cF, su.tF, pen, vn, m);
         Fn = clamp(Fn, 0, m * G * 14);
         let g = SURF_GRIP[wc.surface];
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);
