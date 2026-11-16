@@ -92,7 +92,8 @@ wall? Hold brake to paddle backwards.
   colour picker, wraps, wheel LEDs, a flag pole and a name plate.
 - **Helmet cases** — the Customs *Helmets* tab sells cases that drop one of 19 helmets:
   Common, Rare, Epic and Legendary, plus the Ghost Helmet, which has no rarity at all.
-- **Day, golden hour and night**, four camera modes, synthesised audio.
+- **Day, golden hour and night**, five camera modes (including a free-look *Move cam*:
+  drag the view, or use a gamepad's right stick), synthesised audio.
 
 ## Code map
 

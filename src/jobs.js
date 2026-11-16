@@ -177,11 +177,15 @@ export class Jobs {
     return out;
   }
 
+  // cheat: show (or hide again) every sprocket you have not found yet on the map
+  toggleReveal() { const sv = this.g.save.data.season; sv.reveal = !sv.reveal; this.g.save.persist(); this._pois(); return sv.reveal; }
+
   seasonFound() { const f = this.g.save.data.season.found; return this.tokens.filter((t) => f[t.i]).length; }
 
   _collect(tok) {
     const g = this.g, sv = g.save.data.season, se = this.season;
     sv.found[tok.i] = true; tok.m.visible = false;
+    if (sv.reveal) this._pois();
     const n = this.seasonFound(), total = this.tokens.length;
     g.save.earn(se.each);
     g.hud.popup(`${se.item.toUpperCase()} ${n}/${total}`, 0); g.hud.popup(`+${money(se.each)}`, 0);
@@ -201,7 +205,10 @@ export class Jobs {
   _pois() {
     const ex = this.g.hud.extra, hex = (c) => '#' + c.toString(16).padStart(6, '0');
     ex.pois = this.mode ? [] : this.stations.map((s) => ({ x: s.x, z: s.z, color: hex(s.kind === 'food' ? ORANGE : s.def.wheelie ? PINK : BLUE), letter: s.kind === 'food' ? 'D' : s.def.wheelie ? 'W' : 'R' }));
-    ex.target = null;
+    // the SPROCKETS code puts the ones you still need on the map
+    const sv = this.g.save.data.season;
+    if (sv.reveal) for (const k of this.tokens) if (!sv.found[k.i]) ex.pois.push({ x: k.x, z: k.z, color: this.season.css, letter: 'S' });
+    const lg = document.getElementById('lg-sprk'); if (lg) lg.classList.toggle('hidden', !sv.reveal);
     for (const s of this.stations) s.m.visible = !this.mode;
   }
 
@@ -218,14 +225,14 @@ export class Jobs {
   _begin(mode, job) {
     this.mode = mode; this.job = job;
     this.panel.classList.remove('hidden'); this.panel.dataset.k = mode;
-    this._pois();
+    this.g.hud.extra.target = null; this._pois();
   }
 
   _end() {
     this.mode = null; this.job = null; this.count = 0; this.locked = false; this.sanctioned = false;
     this.drop.visible = false; this.gate[0].visible = this.gate[1].visible = false;
     this.panel.classList.add('hidden');
-    this._pois();
+    this.g.hud.extra.target = null; this._pois();
   }
 
   // quietly drop whatever is running (quit to title, shop, reset)

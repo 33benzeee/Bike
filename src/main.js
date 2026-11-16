@@ -134,6 +134,17 @@ class Game {
       this.respawn(true);
     };
     this.input.onMode = () => { this._updateControlsMode(); if (this.menus.current === 'title' || this.menus.current === 'pause' || this.menus.current === 'controls') this.menus.refresh(); };
+    // move cam: drag on the game view (anywhere the controls aren't) to look around
+    const cv = this.renderer.domElement; let lp = null;
+    cv.addEventListener('pointerdown', (e) => {
+      if (this.state !== 'play' || this.rig.id !== 'move' || lp) return;
+      lp = { id: e.pointerId, x: e.clientX, y: e.clientY }; this.rig.dragging = true;
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
+    });
+    cv.addEventListener('pointermove', (e) => { if (!lp || e.pointerId !== lp.id) return; this.rig.lookBy(e.clientX - lp.x, e.clientY - lp.y); lp.x = e.clientX; lp.y = e.clientY; });
+    const lookEnd = (e) => { if (lp && e.pointerId === lp.id) { lp = null; this.rig.dragging = false; } };
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) cv.addEventListener(ev, lookEnd);
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
     document.getElementById('btn-cam').addEventListener('click', (e) => { this.input.press('camera'); e.currentTarget.blur(); });
     document.getElementById('btn-pause').addEventListener('click', (e) => { this.input.press('pause'); e.currentTarget.blur(); });
     this.renderer.domElement.addEventListener('pointerdown', () => this.audio.start());
@@ -413,6 +424,10 @@ class Game {
     const code = String(raw || '').trim().toUpperCase(), s = this.save;
     if (!code) return { ok: false, msg: 'Type a code first.' };
     if (code === 'BBV33') { s.earn(25000); return { ok: true, msg: `Cha-ching. +${money(25000)} — you now have ${money(s.cash)}.` }; }
+    if (code === 'SPROCKETS') {
+      const J = this.jobs, on = J.toggleReveal(), left = J.tokens.length - J.seasonFound();
+      return { ok: true, msg: on ? (left ? `The ${left} ${J.season.item}s you still need are marked on the map and minimap. Enter SPROCKETS again to hide them.` : `You have already found every ${J.season.item} this season.`) : `${J.season.item}s are hidden again.` };
+    }
     if (code === 'NOCOPS') {
       this.noCops = !this.noCops;
       if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);
@@ -493,7 +508,8 @@ class Game {
 
     // ---- one-shot actions
     if (input.take('pause')) { this.pause(); return; }
-    if (input.take('camera')) { const m = this.rig.next(); st.camera = m.id; this.save.persist(); hud.camName(m.label); }
+    if (input.take('camera')) { const m = this.rig.next(); st.camera = m.id; this.save.persist(); hud.camName(m.label); if (m.id === 'move') hud.hint(this.touchOn ? 'Move cam: drag anywhere on the screen to look around' : 'Move cam: hold the mouse button and drag to look around · right stick on a gamepad', 4); }
+    if (s.look) this.rig.lookBy(s.look * dt * 420, 0);
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }
     if (input.take('time')) { const k = Object.keys(TIMES); const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(TIMES[n].label); }
     if (input.take('garage')) hud.hint('Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);

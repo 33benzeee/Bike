@@ -1,9 +1,10 @@
-// Camera rig: chase, far chase, first-person and handlebar views.
+// Camera rig: chase, free-look chase, far chase, first-person and handlebar views.
 import * as THREE from 'three';
 import { circleVsObstacle } from './world/terrain.js';
 
 export const CAM_MODES = [
   { id: 'chase', label: 'Chase' },
+  { id: 'move', label: 'Move cam' },
   { id: 'far', label: 'Far chase' },
   { id: 'first', label: 'First person' },
   { id: 'bars', label: 'Handlebar cam' },
@@ -18,12 +19,30 @@ export class CameraRig {
     this.mode = 0; this.yaw = 0; this.side = 0; this.shake = 0; this.fov = 65; this.snap = true;
     this.pos = new THREE.Vector3(); this.look = new THREE.Vector3();
     this.orbit = 0;
+    // move cam: where the player has swung the view, relative to straight behind
+    this.lookYaw = 0; this.lookPitch = 0; this.lookT = 99; this.dragging = false;
   }
 
   get id() { return CAM_MODES[this.mode].id; }
   next() { this.mode = (this.mode + 1) % CAM_MODES.length; this.snap = true; return CAM_MODES[this.mode]; }
   set(id) { const i = CAM_MODES.findIndex((m) => m.id === id); if (i >= 0) { this.mode = i; this.snap = true; } }
   kick(a) { this.shake = Math.min(1, this.shake + a); }
+
+  // move cam: swing the view by a drag (pixels) or a stick (already scaled)
+  lookBy(dx, dy, k = 0.0058) {
+    this.lookYaw -= dx * k; this.lookPitch = Math.max(-0.22, Math.min(1.15, this.lookPitch + dy * k * 0.8));
+    const tau = Math.PI * 2; this.lookYaw = ((((this.lookYaw + Math.PI) % tau) + tau) % tau) - Math.PI;
+    this.lookT = 0;
+  }
+
+  // ...and drift back behind the rider once they have let go and are moving
+  _settle(dt, speed) {
+    if (this.id !== 'move') { this.lookYaw = 0; this.lookPitch = 0; return; }
+    this.lookT += dt;
+    if (this.dragging || this.lookT < 2.2 || speed < 2) return;
+    const k = 1 - Math.min(1, dt * 2.4);
+    this.lookYaw *= k; this.lookPitch *= k;
+  }
 
   _blocked(x, z) {
     let hit = false;
@@ -45,10 +64,11 @@ export class CameraRig {
   foot(dt, f) {
     const cam = this.camera;
     this.yaw += angDiff(f.yaw, this.yaw) * Math.min(1, dt * 3.2);
-    const sx = Math.sin(this.yaw), sz = Math.cos(this.yaw);
-    let d = 4.4, cx = f.x - sx * d, cz = f.z - sz * d;
+    this._settle(dt, Math.abs(f.speed || 0));
+    const a = this.yaw + this.lookYaw, sx = Math.sin(a), sz = Math.cos(a), up = Math.sin(this.lookPitch) * 4.4;
+    let d = 4.4 * Math.cos(this.lookPitch), cx = f.x - sx * d, cz = f.z - sz * d;
     if (this._blocked(cx, cz)) for (let k = 0.8; k > 0.2; k -= 0.15) { cx = f.x - sx * d * k; cz = f.z - sz * d * k; if (!this._blocked(cx, cz)) break; }
-    _v.set(cx, Math.max(f.y + 2.1, this.terrain.height(cx, cz) + 0.6), cz);
+    _v.set(cx, Math.max(f.y + 2.1 + up, this.terrain.height(cx, cz) + 0.6), cz);
     _t.set(f.x, f.y + 1.2, f.z);
     if (this.snap) { this.pos.copy(_v); this.look.copy(_t); this.snap = false; }
     this.pos.lerp(_v, Math.min(1, dt * 6)); this.look.lerp(_t, Math.min(1, dt * 10));
@@ -63,6 +83,7 @@ export class CameraRig {
     this.shake = Math.max(0, this.shake - dt * 2.5);
     const sh = this.shake * this.shake * 0.12;
     let fovT = 64 + Math.min(22, speed * 0.75);
+    this._settle(dt, speed);
 
     if (phys.crashed) {
       // watch the rider tumble
@@ -72,16 +93,16 @@ export class CameraRig {
       this.pos.lerp(_v, Math.min(1, dt * 3)); this.look.lerp(_t, Math.min(1, dt * 6));
       cam.position.copy(this.pos); cam.lookAt(this.look);
       fovT = 60;
-    } else if (id === 'chase' || id === 'far') {
-      const far = id === 'far';
+    } else if (id === 'chase' || id === 'far' || id === 'move') {
+      const far = id === 'far', turned = Math.min(1, Math.abs(this.lookYaw) * 2 + Math.abs(this.lookPitch) * 2);
       // follow where the bike is going, not every twitch of the bars
       const travel = speed > 2.5 ? Math.atan2(phys.vx, phys.vz) : phys.yaw;
       const want = phys.yaw + angDiff(travel, phys.yaw) * 0.5;
       this.yaw += angDiff(want, this.yaw) * Math.min(1, dt * (far ? 3 : 4.2));
       const wheelie = phys.wheelieT > 0.15 || (phys.pitch < -0.25 && phys.frontContact);
-      this.side += ((wheelie && !far ? 1 : 0) - this.side) * Math.min(1, dt * 2.2);
-      const dist = (far ? 9 : 4.7) + speed * 0.045, height = (far ? 4.4 : 1.75) - this.side * 0.5;
-      const sx = Math.sin(this.yaw), sz = Math.cos(this.yaw);
+      this.side += ((wheelie && !far ? 1 - turned : 0) - this.side) * Math.min(1, dt * 2.2);
+      const reach = (far ? 9 : 4.7) + speed * 0.045, dist = reach * Math.cos(this.lookPitch), height = (far ? 4.4 : 1.75) - this.side * 0.5 + Math.sin(this.lookPitch) * reach;
+      const a = this.yaw + this.lookYaw, sx = Math.sin(a), sz = Math.cos(a);
       _t.set(phys.x + sx * 1.2, phys.y + 0.45, phys.z + sz * 1.2);
       // swing out to the right during wheelies so you can read the angle
       const off = this.side * 1.9;
