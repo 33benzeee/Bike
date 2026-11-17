@@ -142,7 +142,13 @@ export class Jobs {
     const T = this.T, rnd = mulberry(se.seed), hit = { nx: 0, nz: 0 }, sp = this.g.city.spots;
     const free = (x, z, y) => {
       let ok = true;
-      T.query(x, z, 1.4, (o) => { if (!ok || o.y1 < y + 0.4 || o.y0 > y + 2.2) return; if (circleVsObstacle(o, x, z, 0.8, hit) > 0) ok = false; });
+      T.query(x, z, 1.4, (o) => {
+        if (!ok) return;
+        // never on top of something (a roof, a crate): those are solid now, but not hiding places
+        if (o.y1 >= y - 0.05 && o.y1 < y + 0.4 && circleVsObstacle(o, x, z, 0, hit) > 0) { ok = false; return; }
+        if (o.y1 < y + 0.4 || o.y0 > y + 2.2) return;
+        if (circleVsObstacle(o, x, z, 0.8, hit) > 0) ok = false;
+      });
       return ok;
     };
     const walk = (x, z, dx, dz, n) => {

@@ -192,7 +192,12 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
     B.flat.color(o.band ?? 0x4a4f58).box(cx, base, cz, sx + 0.3, 3.3, sz + 0.3, { top: false });
     B.flat.color(color).box(cx, base + h, cz, sx + 0.4, 0.7, sz + 0.4, { top: 0x55585e });
     const nUnits = Math.min(3, Math.floor((sx * sz) / 350));
-    for (let k = 0; k < nUnits; k++) B.flat.color(0x8d9197).box(R(x0 + 3, x1 - 3), base + h, R(z0 + 3, z1 - 3), R(2, 4), R(1.2, 2.5), R(2, 4));
+    for (let k = 0; k < nUnits; k++) {
+      const ux = R(x0 + 3, x1 - 3), uz = R(z0 + 3, z1 - 3), uw = R(2, 4), uh = R(1.2, 2.5), ud = R(2, 4);
+      B.flat.color(0x8d9197).box(ux, base + h, uz, uw, uh, ud);
+      terrain.addRect(ux - uw / 2, uz - ud / 2, ux + uw / 2, uz + ud / 2, base + h + uh, SURF.metal);
+      terrain.addBox(ux, uz, uw / 2, ud / 2, 0, base + h, base + h + uh - (uh > 1.6 ? 0.45 : 0));
+    }
     if (h > 60 && rnd() < 0.5) B.flat.color(0x70757c).box(cx, base + h, cz, 0.5, R(8, 16), 0.5);
     if (o.awning) {
       const col = pick([0xb8392e, 0x2e6fb8, 0x2e9c5a, 0xd9a11a, 0x444444]);
@@ -203,7 +208,12 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
         if (side === 'e') B.flat.color(col).box(x1 + 0.8, base + 2.9, cz, 1.6, 0.25, sz * 0.8);
       }
     }
-    terrain.addBox(cx, cz, sx / 2 + 0.15, sz / 2 + 0.15, 0, 0, base + h);
+    // the roof is the top of the parapet slab, and it is solid: land on it, ride across it
+    const roof = base + h + 0.7;
+    terrain.addRect(x0 - 0.2, z0 - 0.2, x1 + 0.2, z1 + 0.2, roof, SURF.concrete);
+    // the side walls stop just under the roof, so landing hard on top (wheels and frame
+    // dipping into the roof for a moment) never shoves the bike sideways off the edge
+    terrain.addBox(cx, cz, sx / 2 + 0.2, sz / 2 + 0.2, 0, 0, roof - 0.45);
     if (h > 5) terrain.sightBoxes.push({ x0, z0, x1, z1 });
   }
 
@@ -218,7 +228,9 @@ export function buildCity(terrain, { seed = 7, quality = 2 } = {}) {
   }
   function crate(x, z, sx, sy, sz, color, rot = 0, base = CURB, top) {
     B.props.color(color).box(x, base, z, sx, sy, sz, { rot, top });
-    terrain.addBox(x, z, sx / 2, sz / 2, rot, 0, base + sy);
+    const q = Math.abs(Math.sin(2 * rot)) < 1e-3, sw = Math.abs(Math.sin(rot)) > 0.5;
+    if (q) { const hx = (sw ? sz : sx) / 2, hz = (sw ? sx : sz) / 2; terrain.addRect(x - hx, z - hz, x + hx, z + hz, base + sy, SURF.metal); }
+    terrain.addBox(x, z, sx / 2, sz / 2, rot, 0, base + sy - (q ? Math.min(0.45, sy * 0.35) : 0));
   }
   const dumpster = (x, z, rot) => crate(x, z, 1.9, 1.3, 1.1, pick([0x2f5d3a, 0x2b4a7a, 0x555a5f]), rot, CURB, 0x1d1f22);
   function bench(x, z, rot) {
