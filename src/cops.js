@@ -10,7 +10,10 @@ import { BIKE_BY_ID, effectiveSpec } from './bikes.js';
 import { circleVsObstacle } from './world/terrain.js';
 
 const _hit = { nx: 0, nz: 0 };
-const OFFICER_SPEED = 7.4; // faster than you can walk, slower than any bike at pace
+// An officer on foot comes out of the car a touch quicker than you walk (4.8 m/s) and tires
+// to slower than you within a few seconds: keep moving and you get away, stand around and
+// you're caught.
+const OFFICER_SPEED = 5.3, OFFICER_TIRED = 3.9, OFFICER_TIRE_T = 5, OFFICER_EXIT_T = 0.9;
 
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -389,7 +392,8 @@ export class Cops {
         const diff = angDiff(Math.atan2(tx - u.x, tz - u.z), u.yaw);
         u.yaw += clamp(diff * 8, -7, 7) * dt;
         // a beat to climb out of the car, then a sprint
-        const vt = u.t < 0.45 ? 0 : OFFICER_SPEED * (back ? 0.8 : 1) * clamp(1.2 - Math.abs(diff) * 0.6, 0.35, 1);
+        const run = OFFICER_SPEED + (OFFICER_TIRED - OFFICER_SPEED) * clamp((u.t - OFFICER_EXIT_T) / OFFICER_TIRE_T, 0, 1);
+        const vt = u.t < OFFICER_EXIT_T ? 0 : (back ? OFFICER_TIRED * 0.8 : run) * clamp(1.2 - Math.abs(diff) * 0.6, 0.35, 1);
         u.speed += clamp(vt - u.speed, -20 * dt, 9 * dt);
         let nx = u.x + Math.sin(u.yaw) * u.speed * dt, nz = u.z + Math.cos(u.yaw) * u.speed * dt;
         if (T.height(nx, nz) - u.y > 0.7) { nx = u.x; nz = u.z; }
@@ -405,7 +409,8 @@ export class Cops {
         if (!back) {
           // close enough to grab: you're caught unless you're moving at real speed
           if (d < 1.5 && (p.onFoot || p.crashed || Math.abs(p.speed) < 6)) { this._endChase(false, true); return; }
-          if (d > 32 || u.t > 18 || u.stuck > 2.5) u.mode = 'back';
+          // out of breath and falling behind: give up and walk back to the car
+          if (d > 32 || u.t > 18 || u.stuck > 2.5 || (u.t > 8 && d > 14)) u.mode = 'back';
         } else if (!home || dd < 2.4 || u.t > 34) { this._remove(u); continue; }
       } else if (u.heli) {
         const tx = (seen || u.sees ? p.x : this.lastX) - 14, tz = (seen || u.sees ? p.z : this.lastZ) - 10;
