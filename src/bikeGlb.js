@@ -30,12 +30,37 @@ const ready = {};
 export const hasGlb = (variant) => !!ready[variant];
 
 // Load every detailed model once. Resolves with the variants that loaded.
+//
+// Files are glTF JSON with the binary buffer inlined as base64 under "x_bin" and the textures
+// as PNG files beside it. The buffer is decoded here and handed to the loader as an in-memory
+// GLB: pages that may only fetch their own files (the published artifact) refuse the data: URIs
+// a self-contained glTF would need.
 export function loadBikeModels() {
   const loader = new GLTFLoader();
-  return Promise.all(Object.entries(GLB_BIKES).map(([v, def]) => new Promise((resolve) => {
-    loader.load(def.url, (gltf) => { ready[v] = prep(gltf.scene); resolve(v); },
-      undefined, (e) => { console.warn(`bike model ${def.url} did not load; keeping the built-in one`, e); resolve(null); });
-  }))).then((list) => list.filter(Boolean));
+  return Promise.all(Object.entries(GLB_BIKES).map(([v, def]) => fetch(def.url)
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then((json) => new Promise((resolve, reject) => {
+      const base = def.url.slice(0, def.url.lastIndexOf('/') + 1);
+      loader.parse(toGlb(json), base, (gltf) => { ready[v] = prep(gltf.scene); resolve(v); }, reject);
+    }))
+    .catch((e) => { console.warn(`bike model ${def.url} did not load; keeping the built-in one`, e); return null; })))
+    .then((list) => list.filter(Boolean));
+}
+
+// glTF JSON (+ base64 buffer) -> GLB bytes
+function toGlb(json) {
+  const raw = atob(json.x_bin); delete json.x_bin;
+  const bin = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  const pad4 = (n) => (n + 3) & ~3;
+  let text = new TextEncoder().encode(JSON.stringify(json));
+  const jLen = pad4(text.length), bLen = pad4(bin.length);
+  const out = new Uint8Array(12 + 8 + jLen + 8 + bLen), dv = new DataView(out.buffer);
+  dv.setUint32(0, 0x46546c67, true); dv.setUint32(4, 2, true); dv.setUint32(8, out.length, true);
+  dv.setUint32(12, jLen, true); dv.setUint32(16, 0x4e4f534a, true);
+  out.fill(0x20, 20, 20 + jLen); out.set(text, 20); text = null;
+  dv.setUint32(20 + jLen, bLen, true); dv.setUint32(24 + jLen, 0x004e4942, true);
+  out.set(bin, 28 + jLen);
+  return out.buffer;
 }
 
 // one-off tidy-up of a freshly loaded scene
