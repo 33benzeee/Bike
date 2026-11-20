@@ -155,6 +155,9 @@ export class BikePhysics {
     let cx = sp.com[0] - this.comShift * sp.leanShift + (inp.comDX || 0);
     // climbing something steep, the rider gets over the bars to keep the front down
     if (inp.assist > 0 && !this.committed && st > 0 && this.frontG > 0.3) cx += Math.min(0.28, st * 0.62) * this.frontG;
+    // on the gas without pulling up, a rider on a torquey bike tucks forward over the tank so
+    // the pull goes into speed instead of lifting the front
+    if (sp.tuck && !this.committed && this.throttle > 0.5) cx += sp.tuck * (this.throttle - 0.5) * 2;
     const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
 

@@ -166,7 +166,7 @@ export const BIKES = [
     price: 60000, upgradeBase: 2600,
     mass: 118, wheelbase: 1.48, rF: 0.36, rR: 0.345, tireW: 0.1,
     com: [0.62, 0.5], leanShift: 0.1, gyr: 0.55,
-    drive: { type: 'electric', maxForce: 2700, power: 60000, topSpeed: 36 },
+    drive: { type: 'electric', maxForce: 3700, power: 82000, topSpeed: 36 }, tuck: 0.2,
     susp: { kF: 12000, cF: 1450, tF: 0.3, kR: 15000, cR: 1850, tR: 0.3 },
     brake: 1.15, grip: 1.18, offroad: 1.2, cdA: 0.62,
     pullTorque: 1.45, hop: 3.4, leanRate: 7.2, steerMax: 0.62, loopAngle: 1.38, pitchDamp: 0.6,
