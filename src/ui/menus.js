@@ -3,6 +3,7 @@ import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED
 import { CHALLENGES } from '../progress.js';
 import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND } from '../helmets.js';
 import { RACES, MEDALS, FOOD, clock, medalCash } from '../jobs.js';
+import { GLB_BIKES } from '../bikeGlb.js';
 import { TIMES } from '../world/sky.js';
 import { CAM_MODES } from '../camera.js';
 import { DEVICE_LABEL } from '../device.js';
@@ -313,7 +314,7 @@ export class Menus {
         <div class="bikes scroll">${list}</div>
         <div class="detail">
           <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
-          <div class="scroll gbody"><div class="blurb">${bike.blurb}</div>
+          <div class="scroll gbody"><div class="blurb">${bike.blurb}</div>${GLB_BIKES[bike.variant] ? `<div class="credit">3D model: <a href="${GLB_BIKES[bike.variant].creditUrl}" target="_blank" rel="noopener">${GLB_BIKES[bike.variant].credit}</a></div>` : ''}
           ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
           ${cta}
           <div class="mi">Mods, paint and wraps are next door at <b>Customs</b>.</div></div>

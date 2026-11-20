@@ -1,0 +1,11 @@
+Model Information:
+* title:	Stark Varg SM
+* source:	https://sketchfab.com/3d-models/stark-varg-sm-bab4fe6d066342eeb96611f37c616311
+* author:	Hari Yojuta (https://sketchfab.com/hariroosi30)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Stark Varg SM" (https://sketchfab.com/3d-models/stark-varg-sm-bab4fe6d066342eeb96611f37c616311) by Hari Yojuta (https://sketchfab.com/hariroosi30) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

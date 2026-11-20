@@ -105,6 +105,7 @@ wall? Hold brake to paddle backwards.
 | `src/physics.js` | Bike dynamics, collisions, crashes |
 | `src/bikes.js` | Bike specs, prices, mods and the customisation catalogue — tune the game here |
 | `src/bikeModel.js`, `src/rider.js` | Procedural bike meshes; IK-posed rider and ragdoll |
+| `src/bikeGlb.js`, `assets/models/` | Detailed glTF bike models, cut into the same moving parts |
 | `src/world/` | City generator, terrain/colliders, sky and lighting |
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
 | `src/tricks.js`, `src/progress.js` | Scoring, save data, challenges |
@@ -112,6 +113,14 @@ wall? Hold brake to paddle backwards.
 | `src/jobs.js`, `src/seasons.js` | Deliveries, races, wheelie runs; season collectibles and rewards |
 | `src/input.js`, `src/ui/` | Keyboard/gamepad/touch input, HUD, menus, touch controls |
 | `src/audio.js`, `src/effects.js`, `src/camera.js` | Sound, particles, cameras |
+
+## Credits
+
+The Stark Varg is drawn with "Stark Varg SM"
+(https://sketchfab.com/3d-models/stark-varg-sm-bab4fe6d066342eeb96611f37c616311) by
+Hari Yojuta (https://sketchfab.com/hariroosi30), licensed under CC-BY-4.0
+(http://creativecommons.org/licenses/by/4.0/). It was simplified and re-textured at smaller
+sizes for the browser; see `assets/models/stark-varg-LICENSE.txt`.
 
 Bike and brand names belong to their respective owners; this is an unaffiliated fan
 project. three.js is MIT licensed (see `vendor/THREE-LICENSE`).

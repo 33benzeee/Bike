@@ -4,6 +4,7 @@
 // so each can be recoloured, wrapped or left stock.
 import * as THREE from 'three';
 import { Batch, between, mat, canvasTexture } from './world/geo.js';
+import { applyGlb, hasGlb, paintGlb } from './bikeGlb.js';
 
 const CYL6 = new THREE.CylinderGeometry(1, 1, 1, 6);
 const CYL12 = new THREE.CylinderGeometry(1, 1, 1, 12);
@@ -339,14 +340,19 @@ export function buildBike(spec, look) {
   plate.position.set(0, anchors.tail.y - 0.075, anchors.tail.z - 0.012); plate.rotation.y = Math.PI; plate.visible = false; group.add(plate);
   let plateText = '';
 
+  // everything built so far is the procedural look; a detailed model can hide it (bikeGlb.js)
+  group.traverse((o) => { if (o.isMesh) o.userData.proc = true; });
+  for (const o of [...leds, plate]) o.userData.proc = false;
+  flag.traverse((o) => { o.userData.proc = false; });
+
   const model = {
-    group, spec, style, rearSusp, rearWheel, swing, fork, forkLower, frontWheel, crank, crankLen, headlight,
+    group, spec, style, rearSusp, rearWheel, swing, fork, forkLower, frontWheel, crank, crankLen, headlight, flag, plate,
     gripL, gripR, anchors, forkLen, rake, hasRearSusp: !!swing, hasFrontSusp: style !== 'bmx',
     slots: Object.keys(mats).filter((k) => k !== 'detail'),
     // Apply paint, wrap, LEDs, flag and plate. Anything missing falls back to stock.
     setLook(lk) {
       if (typeof lk === 'number') lk = { colors: { frame: lk, plastics: lk } };
-      lk = lk || {};
+      lk = lk || {}; this.lastLook = lk;
       const colors = lk.colors || {};
       for (const slot of this.slots) {
         const m = mats[slot], wrap = lk.wrap && lk.wrap.id && (slot === 'frame' || slot === 'plastics') ? lk.wrap : null;
@@ -355,6 +361,7 @@ export function buildBike(spec, look) {
         else { m.map = null; m.vertexColors = true; m.color.set(0xffffff); }
         m.needsUpdate = true;
       }
+      paintGlb(this, colors, lk.wrap && lk.wrap.id ? lk.wrap : null, wrapTexture);
       const ld = lk.leds || {};
       ledState.mode = ld.mode || 'off'; ledState.color.set(ld.color ?? 0x2f7bff);
       for (const r of leds) r.visible = ledState.mode !== 'off';
@@ -382,6 +389,7 @@ export function buildBike(spec, look) {
     },
   };
   model.setLook(look);
+  if (hasGlb(spec.variant)) applyGlb(model);
   return model;
 }
 

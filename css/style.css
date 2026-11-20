@@ -273,6 +273,7 @@ body.onfoot #t-stoppie { display: none; }
 @media (max-height: 430px) { .mi { font-size: 11px; } .mod { padding: 5px 8px; gap: 3px; } .picker { gap: 4px; } }
 @media (max-height: 430px) { .chip { padding: 5px 8px; font-size: 11px; } .chips { gap: 4px; } .gtabs button { padding: 6px 4px; } .pstats span { font-size: 8px; } }
 
+.credit { font: 11px/1.35 system-ui, sans-serif; color: var(--dim); margin-top: 4px; } .credit a { color: var(--dim); pointer-events: auto; }
 /* helmet cases */
 .odds { font: 600 10px/1.5 system-ui, sans-serif; letter-spacing: 0.03em; }
 .reel { font: 800 clamp(16px, 4vh, 24px) var(--font); letter-spacing: 0.05em; text-align: center; padding: 9px 6px; background: #000; border: 1px solid var(--line); min-height: 1.3em; text-transform: uppercase; }

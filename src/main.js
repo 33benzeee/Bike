@@ -18,6 +18,7 @@ import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { Hud, money } from './ui/hud.js';
 import { Jobs } from './jobs.js';
+import { loadBikeModels, applyGlb } from './bikeGlb.js';
 import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet } from './helmets.js';
 import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
@@ -93,6 +94,11 @@ class Game {
     this.setBike(this.save.data.bike, false);
     this._wearHelmet();
     this.jobs = new Jobs(this);
+    // detailed bike models load in the background and replace the built-in look when ready
+    loadBikeModels().then(() => {
+      if (this.model) applyGlb(this.model);
+      if (this.preview) applyGlb(this.preview);
+    });
     this._updateControlsMode();
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250));
