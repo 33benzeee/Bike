@@ -10,7 +10,7 @@ import { toCreasedNormals } from '../vendor/addons/utils/BufferGeometryUtils.js'
 // (three.js strips '.' from them, so 'Spoke.001_8' arrives as 'Spoke001_8').
 export const GLB_BIKES = {
   varg: {
-    url: 'assets/models/stark-varg.glb',
+    url: 'assets/models/stark-varg.json', // self-contained glTF (buffers and textures embedded)
     credit: '"Stark Varg SM" by Hari Yojuta (sketchfab.com/hariroosi30), CC BY 4.0',
     creditUrl: 'https://sketchfab.com/3d-models/stark-varg-sm-bab4fe6d066342eeb96611f37c616311',
     frontWheel: /^Wheel-F_|^F-Dic_|^F-Hub_|^Spoke/, // spin with the front wheel
