@@ -22,6 +22,8 @@ function springForce(k, c, travel, pen, vn, m) {
   if (pen > travel) F += k * 10 * (pen - travel) - LAND.stop * Math.sqrt(k * 10 * m * 0.5) * vn;
   return F;
 }
+// how hard a held wheelie can still accelerate, as a fraction of g (Sim gets 60% of it)
+const WHEELIE_ACC = 0.24;
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -325,6 +327,14 @@ export class BikePhysics {
         const fs = Fn * ns + Ft * ny, fy = Fn * ny - Ft * ns;
         Fs += fs; Fy += fy;
         tq += (rsR - ns * r) * fy - (ryR - ny * r) * fs;
+        // On the gas in a pulled wheelie the rider shifts forward to hold the angle, so the
+        // motor's spare pull goes into speed instead of lifting the front further. Without
+        // this, holding the balance point with the throttle open never gains any speed.
+        if (this.committed && !this.frontContact && !burn && this.throttle > 0.05 && Ft >= 0) {
+          const spare = Math.max(0, this._drive(this.throttle, vt) - Fd);
+          const Fx = Math.max(0, Math.min(spare, m * G * WHEELIE_ACC * (assist > 0 ? 1 : 0.6) * this.throttle, lim * 0.9 - Ft));
+          Fs += Fx * ny; Fy -= Fx * ns;
+        }
         fnTotal += Fn; rearC = true;
         this.rearPen = pen; this.rearFn = Fn; this.surface = wc.surface;
         if (burn) this.spinR += ((th * sp.drive.topSpeed * 1.15) / r - this.spinR) * Math.min(1, 5 * h);
