@@ -182,6 +182,28 @@ export function applyGlb(model) {
   if (model.flag) { model.flag.position.copy(model.anchors.tail); model.flag.position.y -= 0.03; }
   if (model.plate) model.plate.position.set(0, model.anchors.tail.y - 0.075, model.anchors.tail.z - 0.012);
 
+  // wheel LEDs: refit the rings to this model's rims, just outside each rim's sides
+  // (the built-in rings sit inside the hub and sprocket of a wider detailed wheel)
+  if (model.leds) {
+    for (const wheel of [model.rearWheel, model.frontWheel]) {
+      wheel.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(wheel.matrixWorld).invert(), box = new THREE.Box3(), v = new THREE.Vector3();
+      wheel.traverse((o) => {
+        if (!o.isMesh || !o.material || !/Rims/.test(o.material.name)) return;
+        const pos = o.geometry.attributes.position, m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+        for (let i = 0; i < pos.count; i += 3) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(m));
+      });
+      if (box.isEmpty()) continue;
+      const rimR = Math.max(box.max.y, -box.min.y, box.max.z, -box.min.z), half = Math.max(box.max.x, -box.min.x);
+      for (const ring of model.leds) {
+        if (ring.parent !== wheel) continue;
+        ring.geometry.dispose();
+        ring.geometry = new THREE.TorusGeometry(rimR * 0.97, 0.008, 5, 36).rotateY(Math.PI / 2);
+        ring.position.x = Math.sign(ring.position.x) * (half + 0.004);
+      }
+    }
+  }
+
   model.glb = { root: W, paintMats };
   if (model.lastLook) model.setLook(model.lastLook);
   return true;

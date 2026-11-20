@@ -346,7 +346,7 @@ export function buildBike(spec, look) {
   flag.traverse((o) => { o.userData.proc = false; });
 
   const model = {
-    group, spec, style, rearSusp, rearWheel, swing, fork, forkLower, frontWheel, crank, crankLen, headlight, flag, plate,
+    group, spec, style, rearSusp, rearWheel, swing, fork, forkLower, frontWheel, crank, crankLen, headlight, flag, plate, leds,
     gripL, gripR, anchors, forkLen, rake, hasRearSusp: !!swing, hasFrontSusp: style !== 'bmx',
     slots: Object.keys(mats).filter((k) => k !== 'detail'),
     // Apply paint, wrap, LEDs, flag and plate. Anything missing falls back to stock.
