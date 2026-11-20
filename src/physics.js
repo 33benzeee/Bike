@@ -22,6 +22,8 @@ function springForce(k, c, travel, pen, vn, m) {
   if (pen > travel) F += k * 10 * (pen - travel) - LAND.stop * Math.sqrt(k * 10 * m * 0.5) * vn;
   return F;
 }
+// how far each kind of bike leans over at most (rad): BMX and MTB ~40°, mopeds ~37°, e-motos ~43°
+const LEAN_MAX = { bmx: 0.7, mtb: 0.7, moped: 0.65, emoto: 0.75 };
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -455,21 +457,32 @@ export class BikePhysics {
     const au = Math.abs(u);
     let yawRate;
     if (any) {
-      // The bars turn the bike directly; lean is how the bike looks while it does
-      // it, not what makes it turn. Tight at low speed, limited by grip at speed.
+      // How a bike really turns: the bars tip it into a lean, and the lean is what carries it
+      // round (yaw rate = g·tan(lean) / speed). So a turn builds as the bike banks over and
+      // unwinds as it stands back up. At walking pace there's no lean to speak of and the
+      // bars steer it directly.
       const aLatMax = sp.grip * surfGrip * G * 1.3;
       const kGeo = Math.tan(sp.steerMax) / L;
       this.frontG += ((frontC ? 1 : 0) - this.frontG) * Math.min(1, 12 * h);
+      const wheelieK = 1 - this.frontG; // 1 = front wheel up
       const authority = sp.wheelieSteer + (1 - sp.wheelieSteer) * this.frontG;
       const kCmd = this.steer * Math.min(kGeo, aLatMax / Math.max(u * u, 0.01)) * authority;
-      yawRate = u * kCmd;
-      // a modest tilt into the turn, never laid right over
-      const leanTarget = clamp(Math.atan((u * yawRate) / G) * 0.55, -0.42, 0.42);
-      const wn = sp.leanRate * (0.75 + 0.25 * this.frontG);
+      const yawBars = u * kCmd;
+      // lean the turn asks for: the real balance angle, up to what the tyres and the bike allow
+      const leanMax = (sp.leanMax || LEAN_MAX[sp.style] || 0.7) * (1 - 0.35 * wheelieK);
+      const leanTarget = clamp(Math.atan((u * yawBars) / G), -leanMax, leanMax);
+      // tipping in takes a moment; on the back wheel only your body weight does it
+      const wn = sp.leanRate * 1.5 * (1 - 0.4 * wheelieK);
       let la = wn * wn * (leanTarget - this.lean) - 2 * wn * this.leanVel;
       if (inp.wobble > 0 && !frontC) la += (Math.random() - 0.5) * 14 * inp.wobble;
       this.leanVel += la * h;
       this.lean += this.leanVel * h;
+      // the turn follows the lean at speed, the bars at a crawl
+      const yawLean = au > 0.5 ? (G * Math.tan(this.lean)) / u : 0;
+      const k = smooth(2, 5, au);
+      yawRate = yawBars * (1 - k) + yawLean * k;
+      // tyres scrub a little speed in a hard turn
+      u -= 0.035 * Math.abs(u * yawRate) * Math.sign(u) * h;
       if (this.rearLocked && frontC && au > 3) yawRate += this.steer * 1.5 * Math.min(1, au / 8);
       if (this.burning) yawRate += this.steer * 2.4 * this.throttle; // swing the back end round: donuts
       this.airYaw = 0;
