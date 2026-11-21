@@ -4,6 +4,7 @@ const VARIANTS = [
   { key: 'no', name: 'No-Hander', mult: 2.2, air: 'No-Hander', airPts: 300 },
   { key: 'stand', name: 'Seat Stander', mult: 2.6, air: 'Superman', airPts: 500 },
   { key: 'drag', name: 'Foot Drag', mult: 1.6, air: 'Can-Can', airPts: 250 },
+  { key: 'hand', name: 'Hand Drag', mult: 2.0, air: 'Arm Hang', airPts: 200 },
 ];
 
 export class Tricks {
@@ -12,8 +13,8 @@ export class Tricks {
     this.label = ''; this.zone = 0;
     this.wheelie = { on: false, dist: 0, time: 0, thr: 0, swerves: 0, lastSign: 0, peak: 0, named: {} };
     this.stoppie = { on: false, dist: 0, time: 0 };
-    this.varT = { one: 0, no: 0, stand: 0, drag: 0 };
-    this.airVar = { one: 0, no: 0, stand: 0, drag: 0 };
+    this.varT = { one: 0, no: 0, stand: 0, drag: 0, hand: 0 };
+    this.airVar = { one: 0, no: 0, stand: 0, drag: 0, hand: 0 };
     this.skidT = 0; this.hopped = false;
     this.onPopup = null; this.onBank = null; this.onLost = null; this.onStat = null;
     this.scoreMult = 1; this.heatMult = 1;
