@@ -645,7 +645,8 @@ class Game {
     inp.stoppie = frontLever;
     // held on the line during a race countdown
     if (this.jobs.locked) { inp.throttle = 0; inp.brake = 0.4; inp.steer = 0; inp.hop = false; inp.lean = 0; inp.stoppie = false; inp.burnout = false; if (!p.crashed) { p.vx = 0; p.vz = 0; } }
-    inp.comDX = -w.no * 0.035 + w.drag * 0.02 + w.hand * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
+    inp.comDX = -w.no * 0.035 + w.drag * 0.02;
+    inp.handDrag = w.hand * (1 - w.air); inp.comDY = w.stand * (1 - w.air) * 0.16;
     inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2 + w.hand * 0.35);
 
     // ---- simulate
@@ -873,7 +874,7 @@ class Game {
     }
     const r = sp.rR;
     // a hand drag lays the bike over towards the dragging hand
-    const lean = p.lean + this.rider.w.stop * 0.09 + this.rider.w.hand * (1 - this.rider.w.air) * 0.1;
+    const lean = p.lean + this.rider.w.stop * 0.09;
     const sl = Math.sin(lean), cl = Math.cos(lean);
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);
