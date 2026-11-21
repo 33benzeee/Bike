@@ -873,7 +873,7 @@ class Game {
     }
     const r = sp.rR;
     // a hand drag lays the bike over towards the dragging hand
-    const lean = p.lean + this.rider.w.stop * 0.09 + this.rider.w.hand * (1 - this.rider.w.air) * 0.42;
+    const lean = p.lean + this.rider.w.stop * 0.09 + this.rider.w.hand * (1 - this.rider.w.air) * 0.1;
     const sl = Math.sin(lean), cl = Math.cos(lean);
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);
