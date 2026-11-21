@@ -76,8 +76,10 @@ export class Rider {
     this.ragdoll = false; this.walking = false;
     this._gl = V(); this._gr = V(); this._foot = V();
     // the one-hander's free hand is a weight on the end of the arm, simulated in world space
-    this._hp = V(); this._hq = V(); this._hs = V(); this._hsPrev = V(); this._hl = V(); this._hOn = false; this._hsOk = false;
-    this.handWorld = V();
+    // one state per arm: [left, right]. The left is free on a one-hander, both on a no-hander.
+    this._sw = [0, 1].map(() => ({ P: V(), Q: V(), S: V(), prev: V(), on: false, ok: false, contact: false }));
+    this._hl = V();
+    this.handWorld = this._sw[0].P; this.handWorlds = [this._sw[0].P, this._sw[1].P]; this.handContacts = [false, false];
   }
 
   setFirstPerson(on) {
@@ -244,7 +246,7 @@ export class Rider {
     w.stand += ((tr.stand ? 1 : 0) - w.stand) * k;
     w.drag += ((tr.drag ? 1 : 0) - w.drag) * k;
     // a hand on the tarmac counts as a hand drag
-    w.hand += ((this.handContact && w.one > 0.5 ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
+    w.hand += ((this.handContact && (w.one > 0.5 || w.no > 0.5) ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
     w.stop += ((stopped ? 1 : 0) - w.stop) * Math.min(1, dt * 6);
     w.air += ((air ? 1 : 0) - w.air) * Math.min(1, dt * 7);
 
@@ -285,10 +287,11 @@ export class Rider {
       a.target.copy(s === 0 ? this._gl : this._gr);
       a.target.y += 0.02;
       // free-hand poses
-      const no = w.no, one = s === 0 ? w.one * (1 - no) : 0;
-      if (no > 0.01) { _t.copy(a.root); _t.x += sx * 0.46; _t.y += 0.2 + Math.sin(this.t * 5 + s) * 0.03; _t.z -= 0.08; a.target.lerp(_t, no); }
-      if (one > 0.01) a.target.lerp(this._swingHand(dt, a.root, model, ground), one);
-      else if (s === 0) { this._hOn = false; this.handContact = false; }
+      // free hands hang loose (no animation): the left on a one-hander, both on a no-hander
+      const free = s === 0 ? Math.max(w.one, w.no) : w.no;
+      if (free > 0.01) a.target.lerp(this._swingHand(s, dt, a.root, model, ground), free);
+      // (keep tracking the shoulder, so a hand let go at speed starts moving with the bike)
+      else { const st = this._sw[s]; st.prev.copy(a.root); model.group.localToWorld(st.prev); st.ok = true; st.on = false; st.contact = false; this.handContacts[s] = false; this.handContact = this._sw[0].contact || this._sw[1].contact; }
       _p.set(sx * 1, -0.6, -0.5);
       ik(a.root, a.target, L_UPPER, L_FORE, _p, a.mid, a.end);
       seg(a.up, a.root, a.mid); seg(a.fore, a.mid, a.end);
@@ -332,23 +335,24 @@ export class Rider {
     }
   }
 
-  // The free hand of a one-hander: no animation, just a weight on a two-part arm hanging from
+  // A free hand (s: 0 left, 1 right): no animation, just a weight on a two-part arm hanging from
   // the shoulder. It lags behind when the bike moves, swings with the bumps, and when the
   // rider leans far enough it touches the road and drags behind. Returns a rider-space target.
-  _swingHand(dt, root, model, ground) {
-    const g = model.group, S = this._hs.copy(root), P = this._hp, Q = this._hq, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * this.hang); // reaching down for the road
+  _swingHand(s, dt, root, model, ground) {
+    const st = this._sw[s], sx = s === 0 ? 1 : -1, hangHere = s === 0 ? this.hang : 0;
+    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * hangHere); // reaching down for the road
     g.localToWorld(S);
     dt = Math.min(dt, 1 / 30);
-    if (!this._hsOk) { this._hsPrev.copy(S); this._hsOk = true; }
-    if (!this._hOn || P.distanceTo(S) > 3) {
+    if (!st.ok) { st.prev.copy(S); st.ok = true; }
+    if (!st.on || P.distanceTo(S) > 3) {
       // let go of the bar: start where the hand is, moving with the shoulder
-      this._hOn = true;
+      st.on = true;
       P.copy(S); P.y -= L * 0.8;
-      Q.copy(P).sub(S).add(this._hsPrev);
+      Q.copy(P).sub(S).add(st.prev);
     }
     // a loose elbow takes the energy out of the swing (relative to the shoulder, which is doing
     // the bike's speed), so it settles hanging down instead of trailing like a flag
-    const damp = Math.pow(0.06, dt), sp = this._hsPrev;
+    const damp = Math.pow(0.06, dt), sp = st.prev;
     const ux = S.x - sp.x, uy = S.y - sp.y, uz = S.z - sp.z;
     const vx = ux + (P.x - Q.x - ux) * damp, vy = uy + (P.y - Q.y - uy) * damp, vz = uz + (P.z - Q.z - uz) * damp;
     Q.copy(P);
@@ -356,22 +360,23 @@ export class Rider {
     // the arm can bend but not stretch
     const reach = () => { const d = P.distanceTo(S); if (d > L) P.sub(S).multiplyScalar(L / d).add(S); };
     reach();
-    // stay out on the free side of the body
+    // stay out on this arm's side of the body
     const l = this._hl.copy(P); g.worldToLocal(l);
-    if (l.x < SHOULDER_W * 0.7) { l.x = SHOULDER_W * 0.7; g.localToWorld(l); P.copy(l); }
+    if (l.x * sx < SHOULDER_W * 0.7) { l.x = sx * SHOULDER_W * 0.7; g.localToWorld(l); P.copy(l); }
     // the road: the glove stops on it and drags along
     const gy = (this.terrain ? this.terrain.height(P.x, P.z) : ground ?? -1e9) + 0.045;
     // (only the ground below the shoulder: never a wall or roof the hand has swung into)
     const onRoad = ground === undefined || gy < ground + 0.6;
     // within a few centimetres counts: the glove is skimming the tarmac
-    this.handContact = P.y <= gy + 0.07 && onRoad;
+    st.contact = P.y <= gy + 0.07 && onRoad;
     if (P.y <= gy && onRoad) {
       P.y = gy; Q.y = P.y;
       Q.x += (P.x - Q.x) * 0.8; Q.z += (P.z - Q.z) * 0.8; // friction: the tarmac doesn't move
       reach();
     }
-    this._hsPrev.copy(S);
-    this.handWorld.copy(P);
+    st.prev.copy(S);
+    this.handContacts[s] = st.contact;
+    this.handContact = this._sw[0].contact || this._sw[1].contact;
     return g.worldToLocal(this._hl.copy(P));
   }
 

@@ -705,7 +705,7 @@ class Game {
       if (p.slipRear && p.rearContact && p.surface < 2) this.effects.smoke(rx, ry, rz, p.burning ? 3 : 1);
       if (w.drag > 0.8 && p.wheelieT > 0.2 && Math.abs(p.speed) > 3) this.effects.sparks(rx + hz * 0.34 - hx * 0.25, ry, rz - hx * 0.34 - hz * 0.25, 2, p.vx, p.vz);
       // the free hand scraping the tarmac
-      if (this.rider.handContact && Math.abs(p.speed) > 3) { const hw = this.rider.handWorld; this.effects.sparks(hw.x, hw.y - 0.04, hw.z, 2, p.vx, p.vz); }
+      if (Math.abs(p.speed) > 3) for (let i = 0; i < 2; i++) if (this.rider.handContacts[i]) { const hw = this.rider.handWorlds[i]; this.effects.sparks(hw.x, hw.y - 0.04, hw.z, 2, p.vx, p.vz); }
       if (this.tricks.zone === 2) { this._v.copy(model.anchors.tail); model.group.localToWorld(this._v); this.effects.sparks(this._v.x, ry, this._v.z, 3, p.vx, p.vz); }
     }
 
