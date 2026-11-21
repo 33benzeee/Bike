@@ -62,7 +62,7 @@ class Game {
     this.input = new Input();
     this.rig = new CameraRig(this.camera, this.terrain);
     this.rig.set(st.camera);
-    this.rider = new Rider();
+    this.rider = new Rider(); this.rider.terrain = this.terrain;
     this.effects = new Effects(this.scene);
     this.audio = new GameAudio(); this.audio.setVolume(st.volume, st.mute);
     this.traffic = new Traffic(this.scene, this.terrain, this.city, this.q.traffic, this.q.shadows > 1);
@@ -76,7 +76,7 @@ class Game {
     this.lamp = new THREE.SpotLight(0xfff0d0, 0, 60, 0.55, 0.6, 1.4);
     this.scene.add(this.lamp, this.lamp.target);
 
-    this.trickOn = [false, false, false, false, false]; this.trickHeld = [false, false, false, false, false]; this.trickUp = false; this.trickDownT = 0;
+    this.trickOn = [false, false, false, false]; this.trickHeld = [false, false, false, false]; this.trickUp = false; this.trickDownT = 0;
     this.inp = { throttle: 0, brake: 0, steer: 0, lean: 0, hop: false, assist: st.assist, comDX: 0, comDY: 0, wobble: 0 };
     this.state = 'title'; this.prevState = 'title';
     this.model = null; this.preview = null; this.previewId = null;
@@ -550,7 +550,7 @@ class Game {
         p.step(dt, this.inp, null); p.events.length = 0;
         if (!p.crashed && Math.abs(p.speed) < 0.4) { p.vx = 0; p.vz = 0; }
         this.traffic.update(dt, p, null);
-        this._visual(dt, { one: false, no: false, stand: false, drag: false, hand: false });
+        this._visual(dt, { one: false, no: false, stand: false, drag: false });
       }
       if (this.state === 'garage' && this.preview) {
         const g = this.preview.group;
@@ -604,13 +604,10 @@ class Game {
     // ---- rider pose feeds back into the physics (tricks shift weight and wobble)
     const w = this.rider.w, tk = this.trickOn;
     // tricks are switches: tap to start, tap again to stop
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       if (s.tricks[i] && !this.trickHeld[i] && !p.crashed) {
         tk[i] = !tk[i];
         if (tk[i] && i < 2) tk[1 - i] = false; // one-hander and no-hander can't both be on
-        // the hand drag uses the left hand, like the one-hander and the no-hander
-        if (tk[i] && i === 4) tk[0] = tk[1] = false;
-        if (tk[i] && i < 2) tk[4] = false;
         this._trickUI();
       }
       this.trickHeld[i] = s.tricks[i];
@@ -629,7 +626,7 @@ class Game {
       if (spec.drive.type === 'electric') inp.throttle = 0;
       inp.brake = 0; frontLever = false; inp.hop = false; inp.steer *= 0.35;
       if (inp.lean > 0) inp.lean = 0;
-    } else if (w.one > 0.5 || w.hand > 0.5) {
+    } else if (w.one > 0.5) {
       // one hand: you can't yank the bars or hop
       inp.hop = false; if (inp.lean > 0) inp.lean = 0;
     }
@@ -645,9 +642,8 @@ class Game {
     inp.stoppie = frontLever;
     // held on the line during a race countdown
     if (this.jobs.locked) { inp.throttle = 0; inp.brake = 0.4; inp.steer = 0; inp.hop = false; inp.lean = 0; inp.stoppie = false; inp.burnout = false; if (!p.crashed) { p.vx = 0; p.vz = 0; } }
-    inp.comDX = -w.no * 0.035 + w.drag * 0.02;
-    inp.handDrag = w.hand * (1 - w.air); inp.comDY = w.stand * (1 - w.air) * 0.16;
-    inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2 + w.hand * 0.35);
+    inp.comDX = -w.no * 0.035 + w.drag * 0.02; inp.comDY = w.stand * (1 - w.air) * 0.16;
+    inp.wobble = Math.min(1, w.one * 0.25 + w.no * 0.5 + w.stand * 0.75 + w.drag * 0.2);
 
     // ---- simulate
     const dyn = this.traffic.dyn.concat(this.cops.dyn);
@@ -708,16 +704,12 @@ class Game {
       if (p.rearContact && DUST[p.surface] && Math.abs(p.speed) > 4) this.effects.dust(rx, ry, rz, 1, DUST[p.surface], 0.6);
       if (p.slipRear && p.rearContact && p.surface < 2) this.effects.smoke(rx, ry, rz, p.burning ? 3 : 1);
       if (w.drag > 0.8 && p.wheelieT > 0.2 && Math.abs(p.speed) > 3) this.effects.sparks(rx + hz * 0.34 - hx * 0.25, ry, rz - hx * 0.34 - hz * 0.25, 2, p.vx, p.vz);
-      // the glove's slider on the tarmac
-      if (w.hand > 0.8 && w.air < 0.3 && Math.abs(p.speed) > 3) {
-        this.rider.arm[0].hand.getWorldPosition(this._v);
-        const gy = this.terrain.height(this._v.x, this._v.z);
-        if (this._v.y - gy < 0.35) this.effects.sparks(this._v.x, gy, this._v.z, 2, p.vx, p.vz);
-      }
+      // the free hand scraping the tarmac
+      if (this.rider.handContact && Math.abs(p.speed) > 3) { const hw = this.rider.handWorld; this.effects.sparks(hw.x, hw.y - 0.04, hw.z, 2, p.vx, p.vz); }
       if (this.tricks.zone === 2) { this._v.copy(model.anchors.tail); model.group.localToWorld(this._v); this.effects.sparks(this._v.x, ry, this._v.z, 3, p.vx, p.vz); }
     }
 
-    this._visual(dt, { one: tk[0], no: tk[1], stand: tk[2], drag: tk[3], hand: tk[4] });
+    this._visual(dt, { one: tk[0], no: tk[1], stand: tk[2], drag: tk[3] });
     this.rider.setFirstPerson(this.rig.id === 'first' && !p.crashed);
     if (this.foot) this.rig.foot(dt, this.foot); else this.rig.update(dt, p, model, this.rider);
     this.sky.update(pp.x, pp.y, pp.z);
@@ -781,9 +773,9 @@ class Game {
   }
 
   _trickUI() {
-    const names = ['ONE-HANDER', 'NO-HANDER', 'SEAT STANDER', 'FOOT DRAG', 'HAND DRAG'];
+    const names = ['ONE-HANDER', 'NO-HANDER', 'SEAT STANDER', 'FOOT DRAG'];
     const btns = document.getElementById('tricks').children, on = [];
-    for (let i = 0; i < 5; i++) { btns[i].classList.toggle('lit', this.trickOn[i]); if (this.trickOn[i]) on.push(names[i]); }
+    for (let i = 0; i < 4; i++) { btns[i].classList.toggle('lit', this.trickOn[i]); if (this.trickOn[i]) on.push(names[i]); }
     const pill = document.getElementById('trk');
     pill.classList.toggle('hidden', !on.length);
     pill.firstChild.textContent = on.join(' + ') + ' ON';
@@ -873,8 +865,8 @@ class Game {
       return;
     }
     const r = sp.rR;
-    // a hand drag lays the bike over towards the dragging hand
-    const lean = p.lean + this.rider.w.stop * 0.09;
+    // hanging off a one-hander pulls the bike over a little further towards the free hand
+    const lean = p.lean + this.rider.w.stop * 0.09 + this.rider.hang * 0.25;
     const sl = Math.sin(lean), cl = Math.cos(lean);
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);

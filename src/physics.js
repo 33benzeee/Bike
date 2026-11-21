@@ -58,7 +58,7 @@ export class BikePhysics {
     }
     this.vx = this.vy = this.vz = 0;
     this.pitchVel = 0;
-    this.lean = 0; this.leanVel = 0; this.handK = 0;
+    this.lean = 0; this.leanVel = 0;
     this.steer = 0; this.steerVel = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
     this.cx = sp ? sp.com[0] : 0.45; this.cy = sp ? sp.com[1] : 0.5;
     this.rearPen = 0; this.frontPen = 0;
@@ -160,14 +160,7 @@ export class BikePhysics {
     // on the gas without pulling up, a rider on a torquey bike tucks forward over the tank so
     // the pull goes into speed instead of lifting the front
     if (sp.tuck && !this.committed && this.throttle > 0.5) cx += sp.tuck * (this.throttle - 0.5) * 2;
-    let cy = sp.com[1] + (inp.comDY || 0);
-    // hand drag: the rider's weight hangs low off the side, so the bike balances steeper, by
-    // up to ~18 degrees. It shifts over a second or so, slow enough for any bike to follow.
-    this.handK += clamp((inp.handDrag || 0) - this.handK, -h * 0.8, h * 0.8);
-    if (this.handK > 0.001) {
-      const bpT = Math.min(sp.loopAngle - 0.24, Math.atan2(cx, cy) + 0.32);
-      cy += (Math.max(0.12, cx / Math.tan(bpT)) - cy) * this.handK;
-    }
+    const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
 
     let Fs = -0.6 * sp.cdA * u * Math.abs(u);

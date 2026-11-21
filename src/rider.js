@@ -70,10 +70,14 @@ export class Rider {
     this.leg = [0, 1].map(() => ({ up: limb(0.072, mats.pants), fore: limb(0.054, mats.pants), foot: boxM(0.095, 0.075, 0.25, mats.shoes), mid: V(), end: V(), root: V(), target: V() }));
 
     this.w = { one: 0, no: 0, stand: 0, drag: 0, hand: 0, stop: 0, air: 0 };
+    this.hang = 0; this.handContact = false; this.terrain = null;
     this.hip = V(); this.torsoPitch = 0.3; this.t = 0; this.crankA = 0;
     this.firstPerson = false;
     this.ragdoll = false; this.walking = false;
-    this._gl = V(); this._gr = V(); this._hand = new THREE.Vector3(); this._q1 = new THREE.Quaternion(); this._pelvis = new THREE.Matrix4(); this._q2 = new THREE.Quaternion(); this._m = new THREE.Matrix4(); this._v1 = V(); this._v2 = V(); this._v3 = V(); this._foot = V();
+    this._gl = V(); this._gr = V(); this._foot = V();
+    // the one-hander's free hand is a weight on the end of the arm, simulated in world space
+    this._hp = V(); this._hq = V(); this._hs = V(); this._hsPrev = V(); this._hl = V(); this._hOn = false; this._hsOk = false;
+    this.handWorld = V();
   }
 
   setFirstPerson(on) {
@@ -239,7 +243,8 @@ export class Rider {
     w.no += ((tr.no ? 1 : 0) - w.no) * k;
     w.stand += ((tr.stand ? 1 : 0) - w.stand) * k;
     w.drag += ((tr.drag ? 1 : 0) - w.drag) * k;
-    w.hand += ((tr.hand ? 1 : 0) - w.hand) * Math.min(1, dt * 6);
+    // a hand on the tarmac counts as a hand drag
+    w.hand += ((this.handContact && w.one > 0.5 ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
     w.stop += ((stopped ? 1 : 0) - w.stop) * Math.min(1, dt * 6);
     w.air += ((air ? 1 : 0) - w.air) * Math.min(1, dt * 7);
 
@@ -252,31 +257,20 @@ export class Rider {
     const base = cls === 'emoto' ? 0.3 : cls === 'moped' ? 0.2 : cls === 'mtb' ? 0.52 : 0.36;
     let pitch = base + (wheelie > 0 ? wheelie * 0.5 : wheelie * 0.35) - lean * 0.2 + hop * 0.25 - w.no * 0.3 + standG * 0.5 + superman * 0.85;
     pitch = clamp(pitch, -0.25, 1.35);
-    const handG = w.hand * (1 - w.air);
     this.torsoPitch += (pitch - this.torsoPitch) * Math.min(1, dt * 10);
     const hip = this.hip;
     hip.set(0, A.seat.y + 0.09, A.seat.z - 0.02);
     hip.z += -lean * 0.11 - Math.max(0, wheelie) * 0.06;
     hip.y += -hop * 0.07 + standG * 0.43 + superman * 0.28 + Math.abs(lean) * 0.02;
     hip.z += standG * 0.08 - superman * 0.25;
-    hip.x = phys.steer * 0.02 + w.stop * 0.04 + handG * 0.14;
+    hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
-    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no) * (1 - handG), -phys.steer * 0.06 + w.one * 0.08, 'YXZ');
-    // the legs hang off the pelvis, which stays square on the seat whatever the upper body does
-    this.torso.updateMatrix(); this._pelvis.copy(this.torso.matrix);
-    if (handG > 0.01) {
-      // hand drag: hips stay on the seat, the upper body tips out sideways off the left of the
-      // bike until it's nearly flat, chest facing forward, set in world space so it holds
-      // however steep the wheelie is
-      const g = model.group, hx = Math.sin(phys.yaw), hz = Math.cos(phys.yaw);
-      g.getWorldQuaternion(this._q1).invert();
-      const up = this._v1.set(hz * 0.94, 0.34, -hx * 0.94).normalize();
-      const fwd = this._v2.set(hx, -0.15, hz); fwd.addScaledVector(up, -fwd.dot(up)).normalize();
-      const side = this._v3.crossVectors(up, fwd);
-      this._m.makeBasis(side, up, fwd);
-      this._q2.setFromRotationMatrix(this._m).premultiply(this._q1);
-      this.torso.quaternion.slerp(this._q2, handG);
-    }
+    // one-hander: lean the bike towards the free (left) hand and the rider hangs off that side
+    const hangT = w.one * (1 - w.no) * clamp((phys.lean - 0.05) / 0.25, 0, 1) * (1 - w.air);
+    this.hang += (hangT - this.hang) * Math.min(1, dt * 5);
+    hip.x += this.hang * 0.24; hip.y -= this.hang * 0.22;
+    this.torso.position.copy(hip);
+    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08 - this.hang * 1.05, 'YXZ');
     this.head.rotation.set(clamp(0.12 + phys.pitch - this.torsoPitch, -0.9, 0.8), phys.steer * 0.3, 0);
     this.torso.updateMatrix();
 
@@ -293,21 +287,8 @@ export class Rider {
       // free-hand poses
       const no = w.no, one = s === 0 ? w.one * (1 - no) : 0;
       if (no > 0.01) { _t.copy(a.root); _t.x += sx * 0.46; _t.y += 0.2 + Math.sin(this.t * 5 + s) * 0.03; _t.z -= 0.08; a.target.lerp(_t, no); }
-      if (one > 0.01) { _t.copy(a.root); _t.x += sx * 0.3; _t.y += 0.44 + Math.sin(this.t * 10) * 0.04; _t.z += 0.06; a.target.lerp(_t, one); }
-      const hd = s === 0 ? w.hand * (1 - no) : 0;
-      if (hd > 0.01) {
-        if (w.air < 0.5 && ground !== undefined) {
-          // left arm straight down: the glove on the tarmac just under the shoulder
-          const g = model.group, hx = Math.sin(phys.yaw), hz = Math.cos(phys.yaw);
-          this._hand.copy(a.root); g.localToWorld(this._hand);
-          this._hand.x += hx * 0.05 + hz * 0.05; this._hand.z += hz * 0.05 - hx * 0.05; this._hand.y = ground + 0.05;
-          g.worldToLocal(this._hand);
-          a.target.lerp(this._hand, hd * (1 - w.air));
-        } else { _t.copy(a.root); _t.x += 0.25; _t.y -= 0.55; _t.z -= 0.1; a.target.lerp(_t, hd); } // dangling in the air
-      }
-      // ...while the right hand hangs on to the bike by the front of the seat
-      const hold = s === 1 ? w.hand * (1 - w.air) : 0;
-      if (hold > 0.01) { _t.set(-0.06, A.seat.y + 0.06, A.seat.z + 0.32); a.target.lerp(_t, hold); }
+      if (one > 0.01) a.target.lerp(this._swingHand(dt, a.root, model, ground), one);
+      else if (s === 0) { this._hOn = false; this.handContact = false; }
       _p.set(sx * 1, -0.6, -0.5);
       ik(a.root, a.target, L_UPPER, L_FORE, _p, a.mid, a.end);
       seg(a.up, a.root, a.mid); seg(a.fore, a.mid, a.end);
@@ -318,7 +299,7 @@ export class Rider {
     if (model.crank) this.crankA = model.crank.rotation.x;
     for (let s = 0; s < 2; s++) {
       const l = this.leg[s], sx = s === 0 ? 1 : -1;
-      l.root.set(sx * HIP_W, -0.02, 0).applyMatrix4(this._pelvis);
+      l.root.set(sx * HIP_W, -0.02, 0).applyMatrix4(this.torso.matrix);
       const peg = s === 0 ? A.pegL : A.pegR;
       l.target.copy(peg);
       if (model.crank) {
@@ -329,7 +310,6 @@ export class Rider {
       l.target.y += 0.085; l.target.z -= 0.03;
       if (standG > 0.01) { _t.set(sx * 0.07, A.seat.y + 0.1, A.seat.z + (s ? 0.1 : -0.06)); l.target.lerp(_t, standG); }
       if (superman > 0.01) { _t.copy(l.root); _t.x += sx * 0.04; _t.y += 0.06; _t.z -= 0.86; l.target.lerp(_t, superman); }
-      // hand drag: legs trail back over the seat
       if (s === 0) {
         const down = Math.max(w.drag * (1 - w.air), w.stop);
         if (down > 0.01 && ground !== undefined) {
@@ -350,6 +330,49 @@ export class Rider {
       l.foot.position.copy(l.end); l.foot.position.z += 0.06; l.foot.position.y -= 0.03;
       l.foot.rotation.set(superman * 1.2 + (s === 0 ? w.drag * (1 - w.air) * 0.4 : 0), 0, 0);
     }
+  }
+
+  // The free hand of a one-hander: no animation, just a weight on a two-part arm hanging from
+  // the shoulder. It lags behind when the bike moves, swings with the bumps, and when the
+  // rider leans far enough it touches the road and drags behind. Returns a rider-space target.
+  _swingHand(dt, root, model, ground) {
+    const g = model.group, S = this._hs.copy(root), P = this._hp, Q = this._hq, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * this.hang); // reaching down for the road
+    g.localToWorld(S);
+    dt = Math.min(dt, 1 / 30);
+    if (!this._hsOk) { this._hsPrev.copy(S); this._hsOk = true; }
+    if (!this._hOn || P.distanceTo(S) > 3) {
+      // let go of the bar: start where the hand is, moving with the shoulder
+      this._hOn = true;
+      P.copy(S); P.y -= L * 0.8;
+      Q.copy(P).sub(S).add(this._hsPrev);
+    }
+    // a loose elbow takes the energy out of the swing (relative to the shoulder, which is doing
+    // the bike's speed), so it settles hanging down instead of trailing like a flag
+    const damp = Math.pow(0.06, dt), sp = this._hsPrev;
+    const ux = S.x - sp.x, uy = S.y - sp.y, uz = S.z - sp.z;
+    const vx = ux + (P.x - Q.x - ux) * damp, vy = uy + (P.y - Q.y - uy) * damp, vz = uz + (P.z - Q.z - uz) * damp;
+    Q.copy(P);
+    P.x += vx; P.y += vy - 9.81 * dt * dt; P.z += vz;
+    // the arm can bend but not stretch
+    const reach = () => { const d = P.distanceTo(S); if (d > L) P.sub(S).multiplyScalar(L / d).add(S); };
+    reach();
+    // stay out on the free side of the body
+    const l = this._hl.copy(P); g.worldToLocal(l);
+    if (l.x < SHOULDER_W * 0.7) { l.x = SHOULDER_W * 0.7; g.localToWorld(l); P.copy(l); }
+    // the road: the glove stops on it and drags along
+    const gy = (this.terrain ? this.terrain.height(P.x, P.z) : ground ?? -1e9) + 0.045;
+    // (only the ground below the shoulder: never a wall or roof the hand has swung into)
+    const onRoad = ground === undefined || gy < ground + 0.6;
+    // within a few centimetres counts: the glove is skimming the tarmac
+    this.handContact = P.y <= gy + 0.07 && onRoad;
+    if (P.y <= gy && onRoad) {
+      P.y = gy; Q.y = P.y;
+      Q.x += (P.x - Q.x) * 0.8; Q.z += (P.z - Q.z) * 0.8; // friction: the tarmac doesn't move
+      reach();
+    }
+    this._hsPrev.copy(S);
+    this.handWorld.copy(P);
+    return g.worldToLocal(this._hl.copy(P));
   }
 
   headWorld(out) {

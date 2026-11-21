@@ -4,7 +4,8 @@ const VARIANTS = [
   { key: 'no', name: 'No-Hander', mult: 2.2, air: 'No-Hander', airPts: 300 },
   { key: 'stand', name: 'Seat Stander', mult: 2.6, air: 'Superman', airPts: 500 },
   { key: 'drag', name: 'Foot Drag', mult: 1.6, air: 'Can-Can', airPts: 250 },
-  { key: 'hand', name: 'Hand Drag', mult: 2.0, air: 'Arm Hang', airPts: 200 },
+  // not a button: a one-hander leaned over far enough that the free hand reaches the road
+  { key: 'hand', name: 'Hand Drag', mult: 2.0, air: 'Hand Drag', airPts: 0 },
 ];
 
 export class Tricks {
