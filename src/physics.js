@@ -24,6 +24,7 @@ function springForce(k, c, travel, pen, vn, m) {
 }
 // how hard a held wheelie can still accelerate, as a fraction of g (Sim gets 60% of it)
 const WHEELIE_ACC = 0.24;
+const SPEEDMAX_G = 1.5; // extra forward push with the speed code, in g
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -453,6 +454,9 @@ export class BikePhysics {
       if (inp.wobble > 0 && rearC && !frontC) tq += (Math.random() - 0.5) * I * 5 * inp.wobble;
     }
 
+    // BBV33SPEEDMAX: an extra push through the centre of mass on top of the motor, so it
+    // pulls hard without spinning the tyre or lifting the front
+    if (this.unlimited && this.throttle > 0.05 && (rearC || frontC)) Fs += m * G * SPEEDMAX_G * this.throttle;
     // ---- integrate the plane
     u += (Fs / m) * h;
     vy += (Fy / m) * h;
