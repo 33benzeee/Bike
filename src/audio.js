@@ -51,6 +51,9 @@ export class GameAudio {
     const lfoG = ctx.createGain(); lfoG.gain.value = 330; this.sirenLfo = osc('sine', 0.55, lfoG); lfoG.connect(this.sirenOsc.frequency);
     this.sirenOsc.frequency.value = 950;
 
+    // rain on everything, and gusts
+    this.rainN = noise('highpass', 2600, 0.4); this.rainL = noise('lowpass', 700, 0.5); this.gust = noise('bandpass', 260, 0.8);
+
     this.clickT = 0;
     this.ready = true;
   }
@@ -98,6 +101,21 @@ export class GameAudio {
   escaped() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this._tone(f, 0.25, 'triangle', 0.16), i * 90)); }
   busted() { [392, 311, 233].forEach((f, i) => setTimeout(() => this._tone(f, 0.35, 'sawtooth', 0.14), i * 160)); }
   lost() { this._tone(300, 0.3, 'triangle', 0.14, 0.5); }
+
+  // weather beds: rain intensity and wind 0..1
+  weather(rain, wind) {
+    if (!this.ready) return;
+    this._set(this.rainN.g.gain, rain * 0.09, 0.5); this._set(this.rainL.g.gain, rain * 0.07, 0.5);
+    this._set(this.gust.g.gain, wind * (0.03 + 0.03 * Math.sin(this.ctx.currentTime * 0.7) ** 2), 0.4);
+  }
+
+  // a crack and a long low rumble
+  thunder(v = 1) {
+    if (!this.ready) return;
+    this._burst(0.35, 1800, 0.25 * v);
+    this._burst(3.2, 140, 0.55 * v);
+    setTimeout(() => this._burst(2.2, 90, 0.4 * v), 250);
+  }
 
   // continuous layers, once per frame --------------------------------------
   update(dt, s) {

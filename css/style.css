@@ -37,6 +37,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #hud .btns { display: flex; gap: 6px; pointer-events: auto; }
 #hud .btns button { width: calc(44px * var(--u)); height: calc(36px * var(--u)); background: var(--panel); border: 1px solid var(--line); font-family: var(--font); font-size: calc(13px * var(--u)); transform: skewX(-8deg); }
 #hud .btns button:active { background: var(--yel); color: #000; }
+#wx { font: 800 12px var(--font); color: #e8edf2; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.6); letter-spacing: 0.04em; }
 #camname { font-size: 13px; color: var(--yel); opacity: 0; transition: opacity 0.4s; text-shadow: 0 1px 0 #000; }
 #camname.show { opacity: 1; }
 

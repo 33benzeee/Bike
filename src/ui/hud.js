@@ -7,7 +7,7 @@ export const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 export class Hud {
   constructor(city) {
-    this.el = $('hud'); this.cash = $('cash'); this.heat = [...$('heat').children]; this.heatBox = $('heat');
+    this.el = $('hud'); this.wxEl = $('wx'); this.cash = $('cash'); this.heat = [...$('heat').children]; this.heatBox = $('heat');
     this.evade = $('evade'); this.evadeBar = this.evade.querySelector('b'); this.evadeLbl = this.evade.querySelector('span');
     this.eye = $('eye'); this.eyeBar = this.eye.querySelector('b');
     this.combo = $('combo'); this.comboLabel = this.combo.querySelector('.label'); this.comboPts = this.combo.querySelector('.pts'); this.comboMult = this.combo.querySelector('.mult'); this.comboBar = this.combo.querySelector('b');

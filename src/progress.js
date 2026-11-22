@@ -38,7 +38,7 @@ const DEFAULTS = () => ({
   stats: {}, done: {},
   helmets: { owned: { white: true }, on: 'white' },
   jobs: { deliveries: 0, earned: 0, streakBest: 0 }, races: {}, season: { id: '', found: {}, done: false },
-  settings: { assist: 1, units: 'mph', time: 'day', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
+  settings: { assist: 1, units: 'mph', time: 'cycle', weather: 'dynamic', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
 });
 
 export class Save {
@@ -51,6 +51,8 @@ export class Save {
         this.data = { ...def, ...d, settings: { ...def.settings, ...(d.settings || {}) }, owned: { ...def.owned, ...(d.owned || {}) }, helmets: { owned: { ...def.helmets.owned, ...((d.helmets || {}).owned || {}) }, on: (d.helmets || {}).on || 'white' }, jobs: { ...def.jobs, ...(d.jobs || {}) }, races: { ...(d.races || {}) }, season: { ...def.season, ...(d.season || {}), found: { ...((d.season || {}).found || {}) } } };
       }
     } catch (e) { /* private mode or corrupt save: start fresh */ }
+    // saves from before the day/night cycle start on it once
+    if (!this.data.settings.cycleOn) { this.data.settings.time = 'cycle'; this.data.settings.cycleOn = 1; }
     for (const id of Object.keys(this.data.owned)) this.data.owned[id] = upgradeEntry(this.data.owned[id]); // older saves
     if (!BIKES.some((b) => b.id === this.data.bike) || !this.data.owned[this.data.bike]) this.data.bike = 'wheelie';
     this._t = null; this.onChallenge = null;

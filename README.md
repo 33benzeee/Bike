@@ -94,7 +94,11 @@ wall? Hold brake to paddle backwards.
   colour picker, wraps, wheel LEDs, a flag pole and a name plate.
 - **Helmet cases** — the Customs *Helmets* tab sells cases that drop one of 19 helmets:
   Common, Rare, Epic and Legendary, plus the Ghost Helmet, which has no rarity at all.
-- **Day, golden hour and night**, five camera modes (including a free-look *Move cam*:
+- **Day/night cycle and weather** — a 24-minute day (12 minutes of daylight, 12 of night)
+  with sunrise and sunset, and weather that drifts between clear, cloudy, fog, rain,
+  thunderstorms and storms: falling rain, darker skies, lightning and thunder, and wet
+  roads with less grip. Settings can fix the time of day or keep the weather clear.
+- **Camera and sound** — five camera modes (including a free-look *Move cam*:
   drag the view, or use a gamepad's right stick), synthesised audio.
 
 ## Code map
@@ -106,7 +110,7 @@ wall? Hold brake to paddle backwards.
 | `src/bikes.js` | Bike specs, prices, mods and the customisation catalogue — tune the game here |
 | `src/bikeModel.js`, `src/rider.js` | Procedural bike meshes; IK-posed rider and ragdoll |
 | `src/bikeGlb.js`, `assets/models/` | Detailed glTF bike models, cut into the same moving parts |
-| `src/world/` | City generator, terrain/colliders, sky and lighting |
+| `src/world/` | City generator, terrain/colliders, sky and lighting, day/night cycle and weather |
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
 | `src/tricks.js`, `src/progress.js` | Scoring, save data, challenges |
 | `src/helmets.js` | Helmet catalogue, case odds and the helmet model |

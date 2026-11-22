@@ -43,8 +43,13 @@ export class Sky {
   }
 
   apply(name, city) {
-    const t = TIMES[name] || TIMES.day;
-    this.name = name; this.night = name === 'night';
+    this.name = name;
+    this.applyPalette(TIMES[name] || TIMES.day, city, name === 'night');
+  }
+
+  // any palette shaped like a TIMES entry (the cycle and the weather blend their own)
+  applyPalette(t, city, night) {
+    this.night = !!night;
     const u = this.dome.material.uniforms;
     u.top.value.set(t.top); u.hor.value.set(t.horizon); u.sunCol.value.set(t.sun);
     this.dir.set(t.dir[0], t.dir[1], t.dir[2]).normalize();

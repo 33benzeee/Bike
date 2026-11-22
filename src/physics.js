@@ -59,7 +59,7 @@ export class BikePhysics {
     }
     this.vx = this.vy = this.vz = 0;
     this.pitchVel = 0;
-    this.lean = 0; this.leanVel = 0;
+    this.lean = 0; this.leanVel = 0; this.gripMul = this.gripMul ?? 1;
     this.steer = 0; this.steerVel = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
     this.cx = sp ? sp.com[0] : 0.45; this.cy = sp ? sp.com[1] : 0.5;
     this.rearPen = 0; this.frontPen = 0;
@@ -311,7 +311,7 @@ export class BikePhysics {
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
         let Fn = springForce(su.kR, su.cR, su.tR, pen, vn, m);
         Fn = clamp(Fn, 0, m * G * 14);
-        let g = SURF_GRIP[wc.surface];
+        let g = SURF_GRIP[wc.surface] * this.gripMul; // wet roads lower it
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);
         surfGrip = g;
         const lim = sp.grip * g * Fn;
@@ -358,7 +358,7 @@ export class BikePhysics {
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
         let Fn = springForce(su.kF, su.cF, su.tF, pen, vn, m);
         Fn = clamp(Fn, 0, m * G * 14);
-        let g = SURF_GRIP[wc.surface];
+        let g = SURF_GRIP[wc.surface] * this.gripMul; // wet roads lower it
         if (wc.surface === 2 || wc.surface === 3) g = Math.min(1, g * sp.offroad);
         if (!rearC) surfGrip = g;
         const lim = sp.grip * g * Fn;

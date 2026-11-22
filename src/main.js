@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Terrain, circleVsObstacle } from './world/terrain.js';
 import { buildCity, CURB } from './world/city.js';
 import { Sky, TIMES } from './world/sky.js';
+import { Weather } from './world/weather.js';
 import { BikePhysics } from './physics.js';
 import { BIKE_BY_ID, MOD_BY_ID, PAINT_PARTS, PRICES, effectiveSpec, lookOf, modPrice, modState, setModEquipped, newEntry } from './bikes.js';
 import { buildBike, poseBike } from './bikeModel.js';
@@ -56,7 +57,8 @@ class Game {
     this.city = buildCity(this.terrain, { quality: this.q.shadows });
     this.scene.add(this.city.group);
     this.sky = new Sky(this.scene, renderer, this.q.shadows);
-    this.sky.apply(st.time, this.city);
+    this.sky.apply(st.time === 'cycle' ? 'day' : st.time, this.city);
+    this.weather = new Weather(this.scene, this.q.shadows);
 
     this.phys = new BikePhysics(this.terrain);
     this.input = new Input();
@@ -94,6 +96,12 @@ class Game {
     this.setBike(this.save.data.bike, false);
     this._wearHelmet();
     this.jobs = new Jobs(this);
+    this.weather.onThunder = (v) => this.audio.thunder(v);
+    this.weather.onChange = (kind) => {
+      if (this.state !== 'play') return;
+      const msg = { rain: 'It\'s starting to rain: wet roads, less grip', thunder: 'Thunderstorm rolling in: wet roads, less grip', storm: 'Storm warning: heavy rain and wind, roads are slippery', fog: 'Fog is rolling in' }[kind];
+      if (msg) this.hud.hint(msg, 4);
+    };
     // detailed bike models load in the background and replace the built-in look when ready
     loadBikeModels().then(() => {
       if (this.model) applyGlb(this.model);
@@ -436,7 +444,7 @@ class Game {
     const st = this.save.data.settings;
     if (val === 'true') val = true; else if (val === 'false') val = false;
     st[key] = val; this.save.persist();
-    if (key === 'time') this.sky.apply(val, this.city);
+    if (key === 'time' && val !== 'cycle') this.sky.apply(val, this.city);
     else if (key === 'assist') this.inp.assist = val;
     else if (key === 'camera') this.rig.set(val);
     else if (key === 'volume' || key === 'mute') this.audio.setVolume(st.volume, st.mute);
@@ -581,6 +589,17 @@ class Game {
       this.sky.update(this.camera.position.x, 0, this.camera.position.z);
     }
     this.time = (this.time || 0) + dt;
+    // the day/night cycle and the weather (frozen while paused)
+    if (this.state !== 'pause') {
+      const wx = this.weather;
+      wx.update(dt, this.camera.position, { cycle: st.time === 'cycle', dynamic: st.weather !== 'clear' });
+      const pal = wx.palette(st.time === 'cycle' ? null : TIMES[st.time] || TIMES.day);
+      this.sky.applyPalette(pal, this.city, pal.night);
+      this.phys.gripMul = wx.grip;
+      const el = this.hud.wxEl, txt = `${st.time === 'cycle' ? wx.clock + ' · ' : ''}${wx.label}`;
+      if (el && el.textContent !== txt) el.textContent = txt;
+      this.audio.weather(wx.mix.rain, wx.mix.wind);
+    }
     this.model.animate(this.time, this.phys.crashed ? 0 : this.phys.speed);
     this._dash(dt);
     if (this.preview) this.preview.animate(this.time, 0);
@@ -606,7 +625,7 @@ class Game {
     if (input.take('camera')) { const m = this.rig.next(); st.camera = m.id; this.save.persist(); hud.camName(m.label); if (m.id === 'move') hud.hint(this.touchOn ? 'Move cam: drag anywhere on the screen to look around' : 'Move cam: hold the mouse button and drag to look around · right stick on a gamepad', 4); }
     if (s.look) this.rig.lookBy(s.look * dt * 420, 0);
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }
-    if (input.take('time')) { const k = Object.keys(TIMES); const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(TIMES[n].label); }
+    if (input.take('time')) { const k = ['cycle', ...Object.keys(TIMES)]; const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(n === 'cycle' ? 'Day/night cycle' : TIMES[n].label); }
     if (input.take('garage')) hud.hint('Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);
     if (input.take('map')) { this.openMap(); return; }
     if (input.take('burn')) {
