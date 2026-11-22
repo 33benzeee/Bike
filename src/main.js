@@ -618,13 +618,15 @@ class Game {
     else if (this.trickUp && p.frontContact && p.rearContact) { this.trickDownT += dt; if (this.trickDownT > 0.35) { this.trickUp = false; this._tricksOff(); } }
     if (p.crashed) this._tricksOff();
 
-    inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist;
+    inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist; inp.rearOnly = false;
     let frontLever = s.stoppie;
     // what your hands and feet are doing limits what you can control
     if (w.no > 0.5) {
       // no hands on the bars: no throttle grip, no brake levers, no pulling, body-lean steering only
       if (spec.drive.type === 'electric') inp.throttle = 0;
-      inp.brake = 0; frontLever = false; inp.hop = false; inp.steer *= 0.35;
+      // with the foot brake kit the rear brake still works, from the pedal
+      if (spec.footBrake) inp.rearOnly = true; else inp.brake = 0;
+      frontLever = false; inp.hop = false; inp.steer *= 0.35;
       if (inp.lean > 0) inp.lean = 0;
     } else if (w.one > 0.5) {
       // one hand: you can't yank the bars or hop

@@ -18,6 +18,7 @@ export const MODS = [
   { id: 'brakes', name: 'Brake Upgrade', info: 'Bigger discs and pads', brake: 0.25, cost: 1.5 },
   { id: 'tyresSport', name: 'Sport Tyres', info: 'Stickier compound', grip: 0.06, brake: 0.05, cost: 1.2, group: 'tyres' },
   { id: 'tyresRace', name: 'Race Tyres', info: 'Maximum grip', grip: 0.12, brake: 0.1, cost: 2.5, group: 'tyres' },
+  { id: 'footBrake', name: 'Foot Brake Kit', info: 'A rear brake pedal: BRAKE still works with your hands off the bars', price: 899, footBrake: true },
 ];
 export const MOD_BY_ID = Object.fromEntries(MODS.map((m) => [m.id, m]));
 
@@ -179,7 +180,7 @@ export const BIKE_BY_ID = Object.fromEntries(BIKES.map((b) => [b.id, b]));
 
 export const modName = (bike, m) => (bike.cls === 'pedal' && m.pedal ? m.pedal : m.name);
 export const modInfo = (bike, m) => (bike.cls === 'pedal' && m.pinfo ? m.pinfo : m.info);
-export const modPrice = (bike, m) => Math.round((bike.upgradeBase * m.cost) / 10) * 10;
+export const modPrice = (bike, m) => m.price ?? Math.round((bike.upgradeBase * m.cost) / 10) * 10;
 
 // 'locked' (missing a prerequisite), 'buy', 'off' (installed, not fitted) or 'on'
 export function modState(entry, m) {
@@ -227,6 +228,7 @@ export function effectiveSpec(bike, entry) {
     },
     grip: bike.grip * grip,
     brake: bike.brake * brake,
+    footBrake: mods.footBrake === 2,
     susp: { kF: su.kF * tune.k, cF: su.cF * tune.c, tF: su.tF, kR: su.kR * tune.k, cR: su.cR * tune.c, tR: su.tR },
   };
 }

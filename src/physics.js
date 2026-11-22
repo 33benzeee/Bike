@@ -177,7 +177,7 @@ export class BikePhysics {
     // burnout: front brake clamped, rear wheel lit up
     const burn = !!inp.burnout && sp.drive.type === 'electric' && this.frontContact && this.rearContact && Math.abs(u) < 4.5 && th > 0.05;
     this.burning = burn;
-    if (!this.frontContact) { bF = 0; bR = br; } else { bF = br; bR = br * 0.6; }
+    if (!this.frontContact || inp.rearOnly) { bF = 0; bR = br; } else { bF = br; bR = br * 0.6; }
     if (this.frontContact && this.frontIn > bF) bF = this.frontIn; // front lever: front wheel only, never the rear
     if (burn) { bF = 1; bR = 0; }
     this.assistBrake = 0;

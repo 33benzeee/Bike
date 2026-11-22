@@ -239,7 +239,7 @@ export class Menus {
       else if (state === 'buy') btn = `<button class="mbtn" data-a="mod" data-v="${m.id}" ${s.cash < price ? 'disabled' : ''}>INSTALL · ${money(price)}</button>`;
       else btn = `<button class="mbtn" disabled>NEEDS ${m.needs.filter((n) => !entry.mods[n]).map((n) => modName(bike, MOD_BY_ID[n]).toUpperCase()).join(' + ')}</button>`;
       const tag = state === 'on' ? '<span class="tag2 on">EQUIPPED</span>' : state === 'off' ? '<span class="tag2">INSTALLED</span>' : `<span class="tag2 price">${money(price)}</span>`;
-      return `<div class="mod ${state}"><div class="mh"><span class="mn">${modName(bike, m)}</span>${tag}</div><div class="mi">${modInfo(bike, m)} · <b>${fx(m)}</b></div>${btn}</div>`;
+      return `<div class="mod ${state}"><div class="mh"><span class="mn">${modName(bike, m)}</span>${tag}</div><div class="mi">${modInfo(bike, m)}${fx(m) ? ` · <b>${fx(m)}</b>` : ''}</div>${btn}</div>`;
     }).join('');
     const tunes = SUSP_TUNES.map((t) => `<button class="${(entry.susp || 'street') === t.id ? 'on' : ''}" data-a="susp" data-v="${t.id}">${t.name}</button>`).join('');
     const tune = SUSP_TUNES.find((t) => t.id === (entry.susp || 'street'));
