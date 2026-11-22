@@ -453,6 +453,10 @@ class Game {
       const J = this.jobs, on = J.toggleReveal(), left = J.tokens.length - J.seasonFound();
       return { ok: true, msg: on ? (left ? `The ${left} ${J.season.item}s you still need are marked on the map and minimap. Enter SPROCKETS again to hide them.` : `You have already found every ${J.season.item} this season.`) : `${J.season.item}s are hidden again.` };
     }
+    if (code === 'BBV33SPEEDMAX') {
+      this.phys.unlimited = !this.phys.unlimited;
+      return { ok: true, msg: this.phys.unlimited ? 'No speed limit: every bike keeps accelerating as long as you hold the throttle. Enter BBV33SPEEDMAX again to turn it off.' : 'Speed limit back on.' };
+    }
     if (code === 'NOCOPS') {
       this.noCops = !this.noCops;
       if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);

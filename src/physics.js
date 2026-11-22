@@ -87,6 +87,8 @@ export class BikePhysics {
   _drive(th, vt) {
     if (th <= 0) return 0;
     const d = this.spec.drive;
+    // BBV33SPEEDMAX: full pull at any speed, no top speed
+    if (this.unlimited) return d.maxForce * 1.5 * th;
     let F = Math.min(d.maxForce, d.power / Math.max(vt, 0.5));
     if (vt > d.topSpeed * 0.9) F *= clamp((d.topSpeed * 1.02 - vt) / (d.topSpeed * 0.12), 0, 1);
     return F * th;
@@ -163,7 +165,7 @@ export class BikePhysics {
     const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
 
-    let Fs = -0.6 * sp.cdA * u * Math.abs(u);
+    let Fs = this.unlimited ? 0 : -0.6 * sp.cdA * u * Math.abs(u); // no air resistance with the speed code
     const backing = this.backT > 0.4;
     if (backing) Fs += m * clamp((-1.5 - u) * 4, -3, 3);
     let Fy = -m * G;
