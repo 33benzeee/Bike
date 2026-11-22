@@ -204,6 +204,20 @@ export function applyGlb(model) {
     }
   }
 
+  // the dash screen: swap its printed picture for a live canvas (see drawScreen)
+  let screen = null;
+  g.traverse((o) => { // (the screen has moved onto the fork by now)
+    if (screen || !o.isMesh || !o.material || o.material.name !== 'Display' || !o.geometry.attributes.uv) return;
+    const uv = o.geometry.attributes.uv; let u0 = 1, v0 = 1, u1 = 0, v1 = 0;
+    for (let i = 0; i < uv.count; i++) { const u = uv.getX(i), v = uv.getY(i); u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; tex.anisotropy = 4;
+    const m = o.material.clone(); m.map = tex; m.emissiveMap = tex; m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = 0.9; o.material = m;
+    screen = { cv, ctx: cv.getContext('2d'), tex, rect: [u0 * 512, v0 * 256, u1 * 512, v1 * 256], t: 1 };
+  });
+  model.screen = screen;
+  if (screen) drawScreen(screen, { kmh: 0, mph: false, battery: 1, rangeH: 6, mode: '3' });
+
   model.glb = { root: W, paintMats };
   if (model.lastLook) model.setLook(model.lastLook);
   return true;
@@ -220,4 +234,44 @@ export function paintGlb(model, colors, wrap, wrapTex) {
       m.needsUpdate = true;
     }
   }
+}
+
+// The Varg's dash, drawn live in the layout of the original screen: power mode, battery and
+// range across the top, the speed arc and number below. sc.rect is the part of the texture the
+// screen shows (about 441 x 106 px). d: { kmh, mph, battery 0..1, rangeH, mode }
+export function drawScreen(sc, d) {
+  const c = sc.ctx, [x0, y0, x1, y1] = sc.rect, W = x1 - x0, H = y1 - y0, k = H / 106;
+  const X = (f) => x0 + f * W, Y = (px) => y0 + px * k;
+  const teal = '#2ee6b0', dim = '#7d8792', font = (px, w = 800) => `${w} ${Math.max(6, Math.round(px * k))}px system-ui, sans-serif`;
+  c.fillStyle = '#05070a'; c.fillRect(0, 0, sc.cv.width, sc.cv.height);
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  // top band: three boxes
+  c.strokeStyle = '#222a33'; c.lineWidth = 1.5 * k;
+  for (const f of [0.34, 0.66]) { c.beginPath(); c.moveTo(X(f), Y(3)); c.lineTo(X(f), Y(38)); c.stroke(); }
+  c.fillStyle = dim; c.font = font(7.5, 700);
+  c.fillText('POWER MODE', X(0.17), Y(9)); c.fillText('BATTERY', X(0.5), Y(9)); c.fillText('RANGE', X(0.83), Y(9));
+  c.fillStyle = '#1d232b'; const pw = 52 * k, ph = 18 * k; c.beginPath(); c.roundRect(X(0.17) - pw / 2, Y(27) - ph / 2, pw, ph, ph / 2); c.fill();
+  c.fillStyle = '#eef2f6'; c.font = font(14); c.fillText('\u26A1 ' + d.mode, X(0.17), Y(27.5));
+  const pct = Math.round(Math.max(0, Math.min(1, d.battery)) * 100);
+  c.fillStyle = pct > 20 ? teal : '#ff5a3c'; c.font = font(20); c.fillText(`${pct}%`, X(0.5), Y(27));
+  const mins = Math.max(0, Math.round(d.rangeH * 60)), h = Math.floor(mins / 60), mm = mins % 60;
+  c.fillStyle = '#eef2f6'; c.font = font(16); c.fillText(`${h}h ${mm < 10 ? '0' : ''}${mm}m`, X(0.83), Y(27.5));
+  // speed arc across the lower part, from 0 on the left to the top of the scale on the right
+  const maxV = d.mph ? 100 : 160, v = d.mph ? d.kmh / 1.609 : d.kmh, f = Math.max(0, Math.min(1, v / maxV));
+  const r = 175 * k, cx = X(0.5), cy = Y(50) + r, a0 = -Math.PI / 2 - 0.78, a1 = -Math.PI / 2 + 0.78;
+  c.lineCap = 'butt'; c.lineWidth = 9 * k;
+  c.strokeStyle = '#1d242c'; c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke();
+  if (f > 0.003) {
+    const g = c.createLinearGradient(cx - r * 0.7, 0, cx + r * 0.7, 0); g.addColorStop(0, '#0f8f6b'); g.addColorStop(1, teal);
+    c.strokeStyle = g; c.beginPath(); c.arc(cx, cy, r, a0, a0 + (a1 - a0) * f); c.stroke();
+  }
+  c.strokeStyle = '#8b95a0'; c.lineWidth = 1.2 * k; c.fillStyle = dim; c.font = font(6.5, 700);
+  for (let i = 0; i <= 4; i++) {
+    const a = a0 + ((a1 - a0) * i) / 4, ca = Math.cos(a), sa = Math.sin(a);
+    c.beginPath(); c.moveTo(cx + ca * (r - 6 * k), cy + sa * (r - 6 * k)); c.lineTo(cx + ca * (r + 6 * k), cy + sa * (r + 6 * k)); c.stroke();
+    c.fillText(String(Math.round((maxV * i) / 4)), cx + ca * (r - 14 * k), cy + sa * (r - 14 * k));
+  }
+  c.fillStyle = '#ffffff'; c.font = font(28); c.fillText(String(Math.round(v)), X(0.5), Y(80));
+  c.fillStyle = dim; c.font = font(8, 700); c.fillText(d.mph ? 'mph' : 'km/h', X(0.5), Y(98));
+  sc.tex.needsUpdate = true;
 }

@@ -18,7 +18,7 @@ import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { Hud, money } from './ui/hud.js';
 import { Jobs } from './jobs.js';
-import { loadBikeModels, applyGlb } from './bikeGlb.js';
+import { loadBikeModels, applyGlb, drawScreen } from './bikeGlb.js';
 import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet } from './helmets.js';
 import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
@@ -328,7 +328,7 @@ class Game {
     if (this.state !== 'play') return;
     if (this.cops.wanted) { if (!this._shopWarn) { this._shopWarn = true; this.hud.hint('Lose the cops first — the shops are closed to wanted riders', 3); } return; }
     if (this.jobs.mode && this.jobs.mode !== 'delivery') this.jobs.cancel(); // walking into a shop forfeits a race
-    this.shop = kind; this.shopLock = kind;
+    this.shop = kind; this.shopLock = kind; if (this.dash) this.dash.battery = 1; // charged while you browse
     this.tricks.bankNow(); this._tricksOff();
     this.prevState = 'play'; this.state = 'garage';
     this.hud.show(false); this.touch.show(false); this.input.enabled = false;
@@ -476,9 +476,24 @@ class Game {
     this.rider.endRagdoll(this.model.group);
     const s = !home && this.safe.length ? this.safe[Math.max(0, this.safe.length - 3)] : null;
     if (s) p.reset(s.x, s.z, s.yaw); else p.reset(h.x, h.z, h.yaw);
-    if (home) this.cops.reset(h.x, h.z);
+    if (home) { this.cops.reset(h.x, h.z); if (this.dash) this.dash.battery = 1; }
     this.rig.snap = true; this.respawnGrace = 1.5;
     if (!quiet) this.audio.ui();
+  }
+
+  // ---- the Varg's dash screen: live speed, battery and range -------------------------
+  _dash(dt) {
+    const sc = this.model.screen; if (!sc) return;
+    const p = this.phys, b = this.dash || (this.dash = { battery: 1, use: 0 });
+    // the battery drains with the power you use, a little comes back under braking, and it's
+    // topped up whenever you respawn at home or visit a shop
+    const pull = this.state === 'play' && !p.crashed ? Math.max(0, p.effThrottle) * Math.min(1, Math.abs(p.speed) / 8 + 0.25) : 0;
+    b.battery = Math.max(0, Math.min(1, b.battery - pull * dt * 0.0016 + (this.inp.brake > 0.2 && Math.abs(p.speed) > 3 ? dt * 0.0002 : 0)));
+    b.use += (pull - b.use) * Math.min(1, dt * 0.2);
+    sc.t += dt; if (sc.t < 0.1) return; sc.t = 0; // ten updates a second is plenty for a dash
+    const st = this.save.data.settings;
+    const mode = this.phys.unlimited ? '\u221E' : ({ 2: '1', 1: '3', 0.5: '4', 0: '5' })[st.assist] || '3';
+    drawScreen(sc, { kmh: p.crashed ? 0 : Math.abs(p.speed) * 3.6, mph: st.units === 'mph', battery: b.battery, rangeH: b.battery * 6 * (1 - 0.75 * b.use), mode });
   }
 
   // ---- busted: a short scene before the respawn ---------------------------------
@@ -567,6 +582,7 @@ class Game {
     }
     this.time = (this.time || 0) + dt;
     this.model.animate(this.time, this.phys.crashed ? 0 : this.phys.speed);
+    this._dash(dt);
     if (this.preview) this.preview.animate(this.time, 0);
     animateHelmet(this.rider.helmetMat, HELMET_BY_ID[this.save.data.helmets.on], this.time, this.rider.helmetEyes);
     if (this.helmetShow && this.helmetShow.group.visible) {
