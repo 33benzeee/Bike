@@ -352,7 +352,7 @@ export class Rider {
     }
     // a loose elbow takes the energy out of the swing (relative to the shoulder, which is doing
     // the bike's speed), so it settles hanging down instead of trailing like a flag
-    const damp = Math.pow(0.06, dt), sp = st.prev;
+    const damp = Math.pow(0.02, dt), sp = st.prev;
     const ux = S.x - sp.x, uy = S.y - sp.y, uz = S.z - sp.z;
     const vx = ux + (P.x - Q.x - ux) * damp, vy = uy + (P.y - Q.y - uy) * damp, vz = uz + (P.z - Q.z - uz) * damp;
     Q.copy(P);
