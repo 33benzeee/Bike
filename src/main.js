@@ -653,10 +653,7 @@ class Game {
       }
       this.trickHeld[i] = s.tricks[i];
     }
-    // ...and they switch themselves off when the wheelie or jump ends, or you crash
-    const up = p.wheelieT > 0.2 || p.airTime > 0.3;
-    if (up) { this.trickUp = true; this.trickDownT = 0; }
-    else if (this.trickUp && p.frontContact && p.rearContact) { this.trickDownT += dt; if (this.trickDownT > 0.35) { this.trickUp = false; this._tricksOff(); } }
+    // ...they stay on after a wheelie or jump ends, until you switch them off or crash
     if (p.crashed) this._tricksOff();
 
     inp.throttle = s.throttle; inp.brake = s.brake; inp.steer = s.steer; inp.lean = s.lean; inp.hop = s.hop; inp.assist = st.assist; inp.rearOnly = false;

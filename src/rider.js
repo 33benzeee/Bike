@@ -248,6 +248,11 @@ export class Rider {
     // a hand on the tarmac counts as a hand drag
     w.hand += ((this.handContact && (w.one > 0.5 || w.no > 0.5) ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
     w.stop += ((stopped ? 1 : 0) - w.stop) * Math.min(1, dt * 6);
+    // in a wheelie the feet hook under the pegs; with the foot brake kit the right foot presses it
+    const wheeling = phys.rearContact && !phys.frontContact && phys.pitch > 0.15;
+    this.hook = (this.hook || 0) + ((wheeling ? 1 : 0) - (this.hook || 0)) * Math.min(1, dt * 7);
+    const fb = model.spec.footBrake && phys.brakeIn > 0.15 && !phys.crashed ? Math.min(1, phys.brakeIn) : 0;
+    this.press = (this.press || 0) + (fb - (this.press || 0)) * Math.min(1, dt * 14);
     w.air += ((air ? 1 : 0) - w.air) * Math.min(1, dt * 7);
 
     const A = model.anchors, cls = model.style;
@@ -311,6 +316,13 @@ export class Rider {
         l.target.set(peg.x, A.bb.y + r * Math.cos(this.crankA), A.bb.z + r * Math.sin(this.crankA));
       }
       l.target.y += 0.085; l.target.z -= 0.03;
+      if (!model.crank) {
+        // toes under the peg, the top of the boot against it
+        const hook = this.hook * (1 - w.stand) * (1 - w.air * 0.5);
+        if (hook > 0.01) { l.target.y -= 0.13 * hook; l.target.z += 0.035 * hook; }
+        // right foot pushes the foot brake: up against the peg
+        if (s === 1 && this.press > 0.01) l.target.y += 0.045 * this.press;
+      }
       if (standG > 0.01) { _t.set(sx * 0.07, A.seat.y + 0.1, A.seat.z + (s ? 0.1 : -0.06)); l.target.lerp(_t, standG); }
       if (superman > 0.01) { _t.copy(l.root); _t.x += sx * 0.04; _t.y += 0.06; _t.z -= 0.86; l.target.lerp(_t, superman); }
       if (s === 0) {
@@ -331,7 +343,8 @@ export class Rider {
       ik(l.root, l.target, L_THIGH, L_SHIN, _p, l.mid, l.end);
       seg(l.up, l.root, l.mid); seg(l.fore, l.mid, l.end);
       l.foot.position.copy(l.end); l.foot.position.z += 0.06; l.foot.position.y -= 0.03;
-      l.foot.rotation.set(superman * 1.2 + (s === 0 ? w.drag * (1 - w.air) * 0.4 : 0), 0, 0);
+      const toes = model.crank ? 0 : -0.45 * this.hook * (1 - w.stand) - (s === 1 ? 0.25 * this.press : 0);
+      l.foot.rotation.set(superman * 1.2 + (s === 0 ? w.drag * (1 - w.air) * 0.4 : 0) + toes, 0, 0);
     }
   }
 
