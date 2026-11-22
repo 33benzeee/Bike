@@ -17,34 +17,6 @@ const box = (b, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) => b.geom(BOX, mat(
 // disc / cylinder with its axis along X
 const disc = (b, x, y, z, r, w, g = CYL12) => b.geom(g, mat(x, y, z, 0, 0, Math.PI / 2, r, w, r));
 
-// A closed outline with rounded corners. pts: [[x, y], ...]; r: corner radius.
-function roundedPath(path, pts, r) {
-  const n = pts.length;
-  for (let i = 0; i < n; i++) {
-    const [x, y] = pts[i], [px, py] = pts[(i + n - 1) % n], [nx, ny] = pts[(i + 1) % n];
-    const d1 = Math.hypot(px - x, py - y) || 1, d2 = Math.hypot(nx - x, ny - y) || 1;
-    const r1 = Math.min(r, d1 / 2.2), r2 = Math.min(r, d2 / 2.2);
-    const ax = x + ((px - x) / d1) * r1, ay = y + ((py - y) / d1) * r1;
-    if (i === 0) path.moveTo(ax, ay); else path.lineTo(ax, ay);
-    path.quadraticCurveTo(x, y, x + ((nx - x) / d2) * r2, y + ((ny - y) / d2) * r2);
-  }
-  path.closePath();
-  return path;
-}
-
-// A solid drawn in side view and pushed out sideways: outline pts are [[forward, up], ...]
-// in bike space, width is across the bike, centred on x. Rounded corners and edges.
-function sideSolid(pts, width, { x = 0, round = 0.015, bevel = 0.004, holes = [], seg = 4 } = {}) {
-  const shape = roundedPath(new THREE.Shape(), pts, round);
-  for (const h of holes) shape.holes.push(roundedPath(new THREE.Path(), h, round));
-  const depth = Math.max(0.001, width - 2 * bevel);
-  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: seg });
-  g.translate(0, 0, -depth / 2);
-  g.rotateY(-Math.PI / 2); // outline x -> forward (+z), extrusion -> across (x)
-  if (x) g.translate(x, 0, 0);
-  return g;
-}
-
 // [metalness, roughness] per paint slot
 const SLOTS = { frame: [0.45, 0.38], plastics: [0.25, 0.45], seat: [0.05, 0.85], fork: [0.6, 0.35], swingarm: [0.6, 0.4], bars: [0.5, 0.4], grips: [0, 0.9], rims: [0.6, 0.35], shock: [0.5, 0.4], detail: [0.35, 0.55] };
 
@@ -226,52 +198,6 @@ export function buildBike(spec, look) {
     anchors.pegL.set(0.13, bb[1], bb[2] + 0.15); anchors.pegR.set(-0.13, bb[1], bb[2] - 0.15);
     anchors.tail.set(0, railY, -0.24);
     void tail;
-  } else if (v === 'surron') {
-    // Surron Light Bee X: a forged aluminium frame that wraps round the battery like a ring,
-    // the motor slung underneath, a long flat seat, MX plastics and a coil-over behind the battery
-    const piv = [0, 0.07, 0.43], FX = 0.1; // swingarm pivot; frame plates either side of it
-    const frameCol = 0x9aa1a9; // raw aluminium
-    const outer = [[0.86, 0.75], [0.66, 0.56], [0.44, 0.45], [0.395, 0.4], [0.39, 0.12], [0.4, -0.015], [0.47, -0.03],
-      [0.5, 0.03], [0.66, 0.035], [0.8, 0.3], [0.93, 0.6]];
-    const hole = [[0.82, 0.6], [0.66, 0.49], [0.47, 0.4], [0.44, 0.35], [0.44, 0.13], [0.5, 0.085], [0.63, 0.085], [0.76, 0.3], [0.85, 0.52]];
-    fp.color(frameCol);
-    for (const sx of [-1, 1]) fp.geom(sideSolid(outer, 0.026, { x: sx * FX, round: 0.05, holes: [hole] }));
-    tube(fp, headBot, headTop, 0.04, CYL12);
-    // cross members, swingarm pivot bolt
-    fd.color(steel); disc(fd, piv[0], piv[1], piv[2], 0.018, FX * 2 + 0.05, CYL12);
-    fp.color(frameCol); box(fp, 0, 0.4, 0.43, FX * 2, 0.03, 0.05); box(fp, 0, 0.05, 0.62, FX * 2, 0.03, 0.06);
-    // battery inside the ring (bodywork, so it takes paint and wraps)
-    const bat = hole.map(([z, y]) => [z + (z > 0.6 ? -0.004 : 0.004), y + (y > 0.3 ? -0.004 : 0.004)]);
-    pl.geom(sideSolid(bat, FX * 2 - 0.03, { round: 0.04, bevel: 0.006 }));
-    fd.color(spec.accent);
-    for (const sx of [-1, 1]) box(fd, sx * (FX - 0.014), 0.25, 0.6, 0.003, 0.012, 0.22, -0.55);
-    // tank cover between the head and the seat
-    pl.geom(sideSolid([[0.6, 0.47], [0.64, 0.535], [0.8, 0.68], [0.87, 0.7], [0.86, 0.63], [0.72, 0.52], [0.62, 0.45]], 0.17, { round: 0.03, bevel: 0.01 }));
-    // motor under the frame, primary drive case to the jackshaft by the pivot
-    fd.color(0x2b2d31); disc(fd, 0, -0.055, 0.57, 0.078, 0.15, CYL20);
-    fd.color(0xb4b9bf); disc(fd, 0, -0.055, 0.57, 0.052, 0.158, CYL20);
-    fd.color(0x2b2d31); for (const dx of [-0.05, -0.025, 0, 0.025, 0.05]) disc(fd, dx, -0.055, 0.57, 0.081, 0.006, CYL20);
-    fd.color(0x3a3d42); fd.geom(sideSolid([[0.64, -0.06], [0.6, 0.0], [0.45, 0.09], [0.39, 0.07], [0.4, 0.0], [0.55, -0.11], [0.63, -0.11]], 0.03, { x: -(FX + 0.022), round: 0.04 }));
-    fd.color(0x1f2023); box(fd, 0, -0.15, 0.56, FX * 1.6, 0.012, 0.3, 0.1);
-    // seat: long and flat
-    st.color(spec.seat); st.geom(sideSolid([[-0.3, 0.465], [-0.27, 0.505], [0.05, 0.52], [0.45, 0.515], [0.64, 0.53], [0.68, 0.5], [0.6, 0.455], [0.2, 0.44], [-0.24, 0.44]], 0.19, { round: 0.035, bevel: 0.022 }));
-    // subframe under it, side panels, rear fender and tail light
-    fp.color(frameCol);
-    tube2(fp, [0.07, 0.42, 0.4], [0.06, 0.43, -0.24], 0.012); tube2(fp, [0.08, 0.2, 0.39], [0.065, 0.42, -0.05], 0.011);
-    for (const sx of [-1, 1]) pl.geom(sideSolid([[-0.08, 0.445], [0.38, 0.445], [0.39, 0.33], [0.3, 0.27], [0.12, 0.3]], 0.014, { x: sx * 0.085, round: 0.03, bevel: 0.003 }));
-    pl.geom(sideSolid([[-0.22, 0.445], [-0.6, 0.48], [-0.62, 0.465], [-0.45, 0.43], [-0.22, 0.415]], 0.17, { round: 0.02, bevel: 0.006 }));
-    pl.geom(sideSolid([[-0.05, 0.42], [-0.3, 0.43], [-0.32, 0.41], [-0.05, 0.395]], 0.13, { round: 0.01, bevel: 0.003 }));
-    const tl = new THREE.Mesh(BOX, tailMat); tl.scale.set(0.07, 0.022, 0.02); tl.position.set(0, 0.47, -0.6); tl.rotation.x = 0.1; group.add(tl);
-    // rear shock: coil-over from the frame down to the swingarm, in front of the tyre
-    sh.color(0x2a2b2e); tube(sh, [0, 0.43, 0.335], [0, 0.13, 0.365], 0.017, CYL12);
-    sh.color(0xc8282a);
-    for (let k = 0; k < 9; k++) { const f = 0.15 + k * 0.08, y = 0.43 + (0.13 - 0.43) * f, z = 0.335 + 0.03 * f; sh.geom(new THREE.TorusGeometry(0.03, 0.006, 5, 14).rotateX(Math.PI / 2), mat(0, y, z, -0.1)); }
-    sh.color(0xb4b9bf); tube(sh, [0, 0.36, 0.341], [0, 0.39, 0.338], 0.034, CYL12);
-    // footpegs on brackets off the frame
-    fd.color(0x1a1b1e);
-    for (const sx of [-1, 1]) { tube(fd, [sx * FX, 0.03, 0.42], [sx * 0.2, 0.025, 0.4], 0.012); box(fd, sx * 0.17, 0.035, 0.4, 0.09, 0.016, 0.05); }
-    anchors.pegL.set(0.16, 0.02, 0.4); anchors.pegR.set(-0.16, 0.02, 0.4);
-    anchors.tail.set(0, 0.47, -0.6);
   } else {
     // e-moto: twin spar, battery box, motor, MX seat and fenders
     const sy = seat[1], piv = [0, 0.07 * big, 0.43 * big];
@@ -313,8 +239,7 @@ export function buildBike(spec, look) {
   // ---- rear end: wheel (+ swingarm on suspended bikes)
   const rearSusp = new THREE.Group(); group.add(rearSusp);
   const rearWheel = new THREE.Group(); rearSusp.add(rearWheel);
-  const wopt = v === 'surron' ? { knobby: true, spokes: 32, disc: 0.05, discR: 0.105, sprocket: 0.11, rim: 0x141517, hub: 0x2a2b2e, spoke: 0xc9ccd1 }
-    : style === 'emoto' ? { knobby: true, spokes: 14, disc: 0.05, discR: 0.1, sprocket: 0.11, rim: v === 'varg' ? 0x1a1a1c : 0x2a2b2e }
+  const wopt = style === 'emoto' ? { knobby: true, spokes: 14, disc: 0.05, discR: 0.1, sprocket: 0.11, rim: v === 'varg' ? 0x1a1a1c : 0x2a2b2e }
     : style === 'moped' ? { fat: 1, mag: false, spokes: 12, disc: 0.06, rim: 0x1c1c1e }
     : style === 'mtb' ? { knobby: true, spokes: 14, disc: 0.045, rim: 0x222326 }
     : { spokes: 16, rim: spec.accent === 0x111111 ? 0xdedede : 0x2a2b2e, sprocket: 0.045 };
@@ -325,12 +250,7 @@ export function buildBike(spec, look) {
     swing = new THREE.Group(); swing.position.set(piv[0], piv[1], piv[2]); group.add(swing);
     const sb = P(swing, 'swingarm').color(style === 'emoto' ? 0x9a9da2 : 0x1c1d20);
     const len = Math.hypot(piv[1], piv[2]);
-    if (v === 'surron') {
-      // tapered box-section aluminium arms, a brace in front of the tyre, a chain slider
-      for (const sx of [-1, 1]) sb.color(0xa3a9b0).geom(sideSolid([[0.045, 0.03], [-len * 0.55, 0.032], [-len + 0.035, 0.022], [-len - 0.03, 0.016], [-len - 0.03, -0.016], [-len + 0.035, -0.022], [-len * 0.55, -0.03], [0.045, -0.042]], 0.03, { x: sx * 0.075, round: 0.02, bevel: 0.004 }));
-      box(sb, 0, 0.005, -0.06, 0.15, 0.03, 0.035);
-      P(swing, 'detail').color(0x111214).geom(sideSolid([[0.03, 0.035], [-0.16, 0.034], [-0.16, 0.02], [0.03, 0.02]], 0.012, { x: -0.093, round: 0.01, bevel: 0.002 }));
-    } else for (const sx of [-1, 1]) box(sb, sx * 0.075, 0, -len / 2, 0.022, 0.05, len);
+    for (const sx of [-1, 1]) box(sb, sx * 0.075, 0, -len / 2, 0.022, 0.05, len);
     if (style === 'emoto') { const ch = P(swing, 'detail').color(0x2a2b2e); box(ch, -0.058, 0.03, -len / 2, 0.006, 0.01, len * 0.95); box(ch, -0.058, -0.035, -len / 2, 0.006, 0.01, len * 0.95); }
     swing.userData.len = len; swing.userData.piv = piv;
     swing.rotation.x = Math.atan2(-piv[1], piv[2]);
@@ -377,22 +297,10 @@ export function buildBike(spec, look) {
 
   let headlight = null;
   if (style === 'emoto') {
-    if (v === 'surron') {
-      // number plate: a shield over the bars with the LED headlight set into it
-      const plate = new THREE.Shape(); roundedPath(plate, [[-0.115, 0.05], [0.115, 0.05], [0.12, -0.07], [0.07, -0.24], [-0.07, -0.24], [-0.12, -0.07]], 0.03);
-      const pg = new THREE.ExtrudeGeometry(plate, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 4 });
-      upP.geom(pg, mat(0, -0.06, 0.1, 0.12));
-      up.color(0x0e0f11); up.geom(BOX, mat(0, -0.1, 0.112, 0.12, 0, 0, 0.15, 0.06, 0.012));
-      headlight = new THREE.Mesh(BOX, lightMat); headlight.scale.set(0.13, 0.042, 0.012); headlight.position.set(0, -0.1, 0.12); headlight.rotation.x = 0.12; fork.add(headlight);
-      // high fender under the bottom clamp, level with the road
-      upP.geom(sideSolid([[-0.2, 0.0], [-0.02, 0.03], [0.2, 0.018], [0.33, -0.025], [0.34, -0.04], [0.2, 0.002], [-0.02, 0.014], [-0.2, -0.014]], 0.14, { round: 0.03, bevel: 0.004 }), mat(0, -0.31, 0.07, rake));
-      // fork guards on the lowers
-      P(forkLower, 'detail').color(0x111214); for (const sx of [-1, 1]) box(P(forkLower, 'detail'), sx * (legX + 0.018), -forkLen * 0.78, offset * 0.8 + 0.012, 0.012, forkLen * 0.32, 0.05);
-    } else {
-      upP.geom(BOX, mat(0, -forkLen + rF + 0.14, offset + 0.1, rake - 0.12, 0, 0, 0.15, 0.014, 0.62));
-      upP.geom(BOX, mat(0, -0.1, 0.1, 0.1, 0, 0, 0.22, 0.26, 0.02));
-      headlight = new THREE.Mesh(BOX, lightMat); headlight.scale.set(0.12, 0.07, 0.02); headlight.position.set(0, -0.1, 0.115); headlight.rotation.x = 0.1; fork.add(headlight);
-    }
+    // front fender + number plate / headlight mask in paint
+    upP.geom(BOX, mat(0, -forkLen + rF + 0.14, offset + 0.1, rake - 0.12, 0, 0, 0.15, 0.014, 0.62));
+    upP.geom(BOX, mat(0, -0.1, 0.1, 0.1, 0, 0, 0.22, 0.26, 0.02));
+    headlight = new THREE.Mesh(BOX, lightMat); headlight.scale.set(0.12, 0.07, 0.02); headlight.position.set(0, -0.1, 0.115); headlight.rotation.x = 0.1; fork.add(headlight);
   } else if (style === 'moped') {
     up.color(0x101113); up.geom(CYL12, mat(0, -0.12, 0.11, Math.PI / 2 + rake, 0, 0, 0.085, 0.07, 0.085));
     headlight = new THREE.Mesh(new THREE.CircleGeometry(0.07, 14), lightMat); headlight.position.set(0, -0.12 - Math.sin(rake) * 0.037, 0.11 + Math.cos(rake) * 0.037); headlight.rotation.x = rake; fork.add(headlight);
