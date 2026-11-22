@@ -430,7 +430,7 @@ export class Menus {
     return `<div class="screen center"><div class="col panel">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">CODES</div><div class="cash">${money(this.game.save.cash)}</div></div>
       <div class="scroll">
-        <div class="cheat"><input id="cheat-code" type="text" maxlength="16" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <div class="cheat"><input id="cheat-code" type="text" maxlength="32" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
           <button class="cta" data-a="cheat">ENTER</button></div>
         ${r ? `<div class="tip ${r.ok ? 'good' : 'bad'}">${r.msg}</div>` : '<div class="tip">Type a code and press ENTER.</div>'}
       </div></div></div>`;
