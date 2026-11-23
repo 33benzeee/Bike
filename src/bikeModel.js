@@ -146,8 +146,19 @@ export function buildBike(spec, look) {
     tube(fp, seatClu, headTop, R);
     tube(fp, headBot, bb, R * 1.25);
     tube(fp, headBot, headTop, R * 1.4);
-    tube2(fp, [0.05, bb[1], bb[2]], [0.06, 0, 0], 0.012);
-    tube2(fp, [0.03, seatClu[1], seatClu[2]], [0.06, 0, 0], 0.011);
+    if (v !== 'fs') { // hardtail: chainstays and seatstays; a full-suspension bike has a swingarm instead
+      tube2(fp, [0.05, bb[1], bb[2]], [0.06, 0, 0], 0.012);
+      tube2(fp, [0.03, seatClu[1], seatClu[2]], [0.06, 0, 0], 0.011);
+    } else {
+      // rear shock: from the down tube back to the swingarm's rocker, coil and air can
+      // shock hangs under the top tube and drives a rocker on the seat tube
+      const d = [0, seatClu[1] + (headTop[1] - seatClu[1]) * 0.55 - 0.035, seatClu[2] + (headTop[2] - seatClu[2]) * 0.55], s = [0, 0.33, 0.31];
+      sh.color(0x1c1d20); tube(sh, d, [0, (d[1] + s[1]) / 2, (d[2] + s[2]) / 2], 0.024, CYL12);
+      sh.color(0xb9bdc2); tube(sh, [0, (d[1] + s[1]) / 2, (d[2] + s[2]) / 2], s, 0.013, CYL12);
+      sh.color(0xc8282a);
+      for (let k = 0; k < 7; k++) { const f = 0.3 + k * 0.08, px = d[1] + (s[1] - d[1]) * f, pz = d[2] + (s[2] - d[2]) * f; sh.geom(new THREE.TorusGeometry(0.03, 0.006, 5, 12).rotateX(Math.PI / 2), mat(0, px, pz, Math.atan2(s[2] - d[2], s[1] - d[1]))); }
+      fd.color(steelDark); disc(fd, 0, d[1], d[2], 0.016, 0.06, CYL6);
+    }
     fd.color(steel); tube(fd, seatClu, [0, seat[1] - 0.03, seat[2]], 0.014);
     st.color(spec.seat); box(st, 0, seat[1], seat[2] - 0.02, mt ? 0.13 : 0.15, 0.05, mt ? 0.27 : 0.3, -0.06);
     disc(fd.color(steel), 0, bb[1], bb[2], 0.03, 0.09, CYL6);
@@ -245,12 +256,25 @@ export function buildBike(spec, look) {
     : { spokes: 16, rim: spec.accent === 0x111111 ? 0xdedede : 0x2a2b2e, sprocket: 0.045 };
   const rimRR = buildWheel((slot) => P(rearWheel, slot), rR, spec.tireW, wopt);
   let swing = null;
-  if (style === 'emoto' || v === 'super73') {
-    const piv = style === 'emoto' ? [0, 0.07 * big, 0.43 * big] : [0, bb[1] + 0.03, bb[2] - 0.02];
+  if (style === 'emoto' || v === 'super73' || v === 'fs') {
+    const piv = style === 'emoto' ? [0, 0.07 * big, 0.43 * big] : v === 'fs' ? [0, bb[1] + 0.09, bb[2] + 0.01] : [0, bb[1] + 0.03, bb[2] - 0.02];
     swing = new THREE.Group(); swing.position.set(piv[0], piv[1], piv[2]); group.add(swing);
     const sb = P(swing, 'swingarm').color(style === 'emoto' ? 0x9a9da2 : 0x1c1d20);
     const len = Math.hypot(piv[1], piv[2]);
-    for (const sx of [-1, 1]) box(sb, sx * 0.075, 0, -len / 2, 0.022, 0.05, len);
+    if (v === 'fs') {
+      // a one-piece rear triangle on the main pivot: chainstays, seatstays up to a rocker that
+      // drives the shock (built in bike space, then moved into the swingarm's frame)
+      sb.color(paint);
+      const inv = new THREE.Matrix4().compose(new THREE.Vector3(...piv), new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.atan2(-piv[1], piv[2]), 0, 0)), new THREE.Vector3(1, 1, 1)).invert();
+      const L = (p) => new THREE.Vector3(...p).applyMatrix4(inv).toArray();
+      const rock = [0, 0.33, 0.31];
+      for (const sx of [-1, 1]) {
+        tube(sb, L([sx * 0.05, piv[1], piv[2]]), L([sx * 0.06, 0, 0]), 0.014);
+        tube(sb, L([sx * 0.06, 0, 0]), L([sx * 0.03, rock[1], rock[2]]), 0.012);
+      }
+      tube(sb, L([-0.045, piv[1], piv[2]]), L([0.045, piv[1], piv[2]]), 0.018);
+      sb.color(0x1c1d20); tube(sb, L([-0.035, rock[1], rock[2]]), L([0.035, rock[1], rock[2]]), 0.016);
+    } else for (const sx of [-1, 1]) box(sb, sx * 0.075, 0, -len / 2, 0.022, 0.05, len);
     if (style === 'emoto') { const ch = P(swing, 'detail').color(0x2a2b2e); box(ch, -0.058, 0.03, -len / 2, 0.006, 0.01, len * 0.95); box(ch, -0.058, -0.035, -len / 2, 0.006, 0.01, len * 0.95); }
     swing.userData.len = len; swing.userData.piv = piv;
     swing.rotation.x = Math.atan2(-piv[1], piv[2]);
