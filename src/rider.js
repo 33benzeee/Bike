@@ -61,7 +61,7 @@ export class Rider {
     const pack = boxM(0.24, 0.3, 0.1, mats.pack, this.torso); pack.position.set(0, 0.28, -0.14);
     const hood = boxM(0.2, 0.1, 0.12, mats.hoodie, this.torso); hood.position.set(0, TORSO - 0.02, -0.1);
     this.head = new THREE.Group(); this.head.position.set(0, TORSO + 0.15, 0.02); this.torso.add(this.head);
-    const helm = buildHelmet(mats.helmet, mats.visor); this.head.add(helm.group);
+    const helm = buildHelmet(mats.helmet, mats.visor); this.head.add(helm.group); this.helm = helm;
     const neck = boxM(0.09, 0.1, 0.09, mats.hoodie, this.torso); neck.position.set(0, TORSO + 0.03, 0);
     this.helmetMat = mats.helmet; this.visorMat = mats.visor; // restyled by the helmet the player wears
     this.helmetEyes = helm.eyes;

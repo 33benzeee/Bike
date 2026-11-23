@@ -93,7 +93,8 @@ wall? Hold brake to paddle backwards.
   tyres) plus a free suspension tune, and an *Appearance* tab with per-part paint from a
   colour picker, wraps, wheel LEDs, a flag pole and a name plate.
 - **Helmet cases** — the Customs *Helmets* tab sells cases that drop one of 19 helmets:
-  Common, Rare, Epic and Legendary, plus the Ghost Helmet, which has no rarity at all.
+  Common, Rare, Epic, Legendary and the super-rare Mythic Graffiti Original (0.5%), plus the
+  Ghost Helmet, which has no rarity at all.
 - **Day/night cycle and weather** — a 24-minute day (12 minutes of daylight, 12 of night)
   with sunrise and sunset, and weather that drifts between clear, cloudy, fog, rain,
   thunderstorms and storms: falling rain, darker skies, lightning and thunder, and wet
@@ -125,6 +126,12 @@ The Stark Varg is drawn with "Stark Varg SM"
 Hari Yojuta (https://sketchfab.com/hariroosi30), licensed under CC-BY-4.0
 (http://creativecommons.org/licenses/by/4.0/). It was simplified and re-textured at smaller
 sizes for the browser; see `assets/models/stark-varg-LICENSE.txt`.
+
+The helmets use "Full Face MTB Helmet"
+(https://sketchfab.com/3d-models/full-face-mtb-helmet-2b0bb690bbca4453b6d385e4ee0f3294) by
+chett33 (https://sketchfab.com/chett33), licensed under CC-BY-4.0, simplified and re-painted per
+helmet; its original paint job is the Mythic "Graffiti Original". See
+`assets/models/helmet-LICENSE.txt`.
 
 Bike and brand names belong to their respective owners; this is an unaffiliated fan
 project. three.js is MIT licensed (see `vendor/THREE-LICENSE`).

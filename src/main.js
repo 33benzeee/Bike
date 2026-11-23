@@ -20,7 +20,7 @@ import { GameAudio } from './audio.js';
 import { Hud, money } from './ui/hud.js';
 import { Jobs } from './jobs.js';
 import { loadBikeModels, applyGlb, drawScreen } from './bikeGlb.js';
-import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet } from './helmets.js';
+import { HELMET_BY_ID, CASE_PRICE, DUPLICATE_REFUND, rollCase, applyHelmet, animateHelmet, buildHelmet, loadHelmetModel, upgradeHelmet } from './helmets.js';
 import { Menus } from './ui/menus.js';
 import { TouchControls } from './ui/touch.js';
 
@@ -103,6 +103,12 @@ class Game {
       if (msg) this.hud.hint(msg, 4);
     };
     // detailed bike models load in the background and replace the built-in look when ready
+    // the detailed helmet model replaces the built-in helmet when it arrives
+    loadHelmetModel().then((ok) => {
+      if (!ok) return;
+      upgradeHelmet(this.rider.helm); this._wearHelmet();
+      if (this.helmetShow && upgradeHelmet(this.helmetShow)) applyHelmet(this.helmetShow.shell, this.helmetShow.visor, this.helmetShow.def, this.helmetShow.eyes);
+    });
     loadBikeModels().then(() => {
       if (this.model) applyGlb(this.model);
       if (this.preview) applyGlb(this.preview);
@@ -385,7 +391,7 @@ class Game {
   // show a helmet floating above the bike in Customs (null hides it)
   previewHelmet(id) {
     if (!id) { if (this.helmetShow) this.helmetShow.group.visible = false; return; }
-    if (!this.helmetShow) { this.helmetShow = buildHelmet(); this.helmetShow.group.scale.setScalar(2.1); this.scene.add(this.helmetShow.group); }
+    if (!this.helmetShow) { this.helmetShow = buildHelmet(); upgradeHelmet(this.helmetShow); this.helmetShow.group.scale.setScalar(2.1); this.scene.add(this.helmetShow.group); }
     const hs = this.helmetShow;
     hs.def = HELMET_BY_ID[id]; applyHelmet(hs.shell, hs.visor, hs.def, hs.eyes); hs.group.visible = true;
   }

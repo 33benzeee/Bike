@@ -48,7 +48,7 @@ export function loadBikeModels() {
 }
 
 // glTF JSON (+ base64 buffer) -> GLB bytes
-function toGlb(json) {
+export function toGlb(json) {
   const raw = atob(json.x_bin); delete json.x_bin;
   const bin = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
   const pad4 = (n) => (n + 3) & ~3;

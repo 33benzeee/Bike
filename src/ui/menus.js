@@ -1,7 +1,7 @@
 // Title, pause, garage, settings, challenges and controls screens.
 import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
-import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND } from '../helmets.js';
+import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND, HELMET_MODEL_CREDIT } from '../helmets.js';
 import { RACES, MEDALS, FOOD, clock, medalCash } from '../jobs.js';
 import { GLB_BIKES } from '../bikeGlb.js';
 import { TIMES } from '../world/sky.js';
@@ -346,7 +346,8 @@ export class Menus {
         ${reel}
         <button class="mbtn" data-a="case" ${s.cash < CASE_PRICE || this._spinning ? 'disabled' : ''}>${s.cash < CASE_PRICE ? `NEED ${money(CASE_PRICE - s.cash)} MORE` : `OPEN CASE · ${money(CASE_PRICE)}`}</button></div>
       <div class="sec">Your helmets · ${owned} of ${HELMETS.length} · tap one to wear it</div>
-      <div class="hgrid">${grid}</div>`;
+      <div class="hgrid">${grid}</div>
+      <div class="credit">Helmet model: <a href="${HELMET_MODEL_CREDIT.url}" target="_blank" rel="noopener">${HELMET_MODEL_CREDIT.text}</a></div>`;
   }
 
   // ---- customs: mods and looks for the bike you rode in on

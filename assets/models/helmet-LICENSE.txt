@@ -1,0 +1,10 @@
+Model Information:
+* title:	Full Face MTB Helmet
+* source:	https://sketchfab.com/3d-models/full-face-mtb-helmet-2b0bb690bbca4453b6d385e4ee0f3294
+* author:	chett33 (https://sketchfab.com/chett33)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited.
+
+This work is based on "Full Face MTB Helmet" (https://sketchfab.com/3d-models/full-face-mtb-helmet-2b0bb690bbca4453b6d385e4ee0f3294) by chett33 (https://sketchfab.com/chett33) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Simplified and re-textured for the game.
