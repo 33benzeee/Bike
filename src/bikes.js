@@ -157,7 +157,7 @@ export const BIKES = [
     drive: { type: 'electric', maxForce: 900, power: 6500, topSpeed: 21 },
     susp: { kF: 9000, cF: 950, tF: 0.22, kR: 12000, cR: 1250, tR: 0.22 },
     brake: 1.05, grip: 1.1, offroad: 1.15, cdA: 0.6,
-    pullTorque: 1.45, hop: 3.3, leanRate: 8.4, steerMax: 0.66, loopAngle: 1.66, pitchDamp: 0.7, // no rear fender: goes past vertical, until the rider's back nearly touches
+    pullTorque: 1.45, hop: 3.3, leanRate: 8.4, steerMax: 0.66, loopAngle: 1.98, pitchDamp: 0.7, // no rear fender: goes way past vertical (the rider tucks over the tank), loops out at ~120°
     wheelieGain: 3.6, wheelieRate: 1.05, unruly: 0.05, crashSpeed: 7.5, maxImpact: 13, wheelieSteer: 0.5,
     paint: 0x1b1d21, accent: 0xd8d8d8, seat: 0x0e0e0e, variant: 'surron',
   },

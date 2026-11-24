@@ -259,17 +259,23 @@ export class Rider {
     const lean = phys.comShift, hop = phys.hopCharge / 0.3;
     const wheelie = clamp(phys.pitch, -0.7, 1.2);
     const standG = w.stand * (1 - w.air), superman = w.stand * w.air;
+    // past vertical the bike's top faces the road, so the rider tucks flat over the tank
+    // towards the bars, keeping their back and head as close to the bike as they can
+    const deepT = wheeling && !phys.crashed && model.spec.loopAngle > 1.6 ? clamp((phys.pitch - 1.4) / 0.4, 0, 1) * (1 - w.stand) : 0;
+    this.deep = (this.deep || 0) + (deepT - (this.deep || 0)) * Math.min(1, dt * 8);
+    const deep = this.deep;
 
     // ---- hips & torso
     const base = cls === 'emoto' ? 0.3 : cls === 'moped' ? 0.2 : cls === 'mtb' ? 0.52 : 0.36;
     let pitch = base + (wheelie > 0 ? wheelie * 0.5 : wheelie * 0.35) - lean * 0.2 + hop * 0.25 - w.no * 0.3 + standG * 0.5 + superman * 0.85;
-    pitch = clamp(pitch, -0.25, 1.35);
+    pitch = clamp(pitch, -0.25, 1.35) + deep * 0.6;
     this.torsoPitch += (pitch - this.torsoPitch) * Math.min(1, dt * 10);
     const hip = this.hip;
     hip.set(0, A.seat.y + 0.09, A.seat.z - 0.02);
     hip.z += -lean * 0.11 - Math.max(0, wheelie) * 0.06;
     hip.y += -hop * 0.07 + standG * 0.43 + superman * 0.28 + Math.abs(lean) * 0.02;
     hip.z += standG * 0.08 - superman * 0.25;
+    hip.y += deep * 0.04; hip.z += deep * 0.16;
     hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
     // one-hander: lean the bike towards the free (left) hand and the rider hangs off that side
