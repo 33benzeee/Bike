@@ -132,6 +132,10 @@ The Santa Cruz V10 is drawn with "Santa Cruz V10 Downhill Mountain Bicycle"
 by Arsen Ismailov (https://sketchfab.com/fdgasd7), licensed under CC-BY-4.0, simplified for the
 browser; see `assets/models/santa-cruz-v10-LICENSE.txt`.
 
+The Surron Light Bee X is drawn with a model the owner supplied (a Roblox Studio OBJ export,
+`lbxformygame.obj`), converted to glTF, simplified and coloured by part, since it came without
+materials or textures.
+
 The helmets use "Full Face MTB Helmet"
 (https://sketchfab.com/3d-models/full-face-mtb-helmet-2b0bb690bbca4453b6d385e4ee0f3294) by
 chett33 (https://sketchfab.com/chett33), licensed under CC-BY-4.0, simplified and re-painted per

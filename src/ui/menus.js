@@ -314,7 +314,7 @@ export class Menus {
         <div class="bikes scroll">${list}</div>
         <div class="detail">
           <div><div class="brand">${bike.brand}</div><div class="name">${bike.name}</div></div>
-          <div class="scroll gbody"><div class="blurb">${bike.blurb}</div>${GLB_BIKES[bike.variant] ? `<div class="credit">3D model: <a href="${GLB_BIKES[bike.variant].creditUrl}" target="_blank" rel="noopener">${GLB_BIKES[bike.variant].credit}</a></div>` : ''}
+          <div class="scroll gbody"><div class="blurb">${bike.blurb}</div>${GLB_BIKES[bike.variant]?.credit ? `<div class="credit">3D model: <a href="${GLB_BIKES[bike.variant].creditUrl}" target="_blank" rel="noopener">${GLB_BIKES[bike.variant].credit}</a></div>` : ''}
           ${stat(`Top ${top}`, bars.speed)}${stat('Punch', bars.accel)}${stat('Agility', bars.handling)}${stat('Balance', bars.balance)}
           ${cta}
           <div class="mi">Mods, paint and wraps are next door at <b>Customs</b>.</div></div>

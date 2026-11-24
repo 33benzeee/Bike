@@ -42,6 +42,19 @@ export const GLB_BIKES = {
     rims: /^Cylinder0(06|07|46|47)_/, // the rims (by mesh name: their material was merged with the cables')
     paint: { frame: ['M_Frame'], swingarm: ['M_Frame'], fork: ['M_Fox40_1'], seat: ['M_Seat'], shock: ['MetalOrange'] },
   },
+  surron: {
+    url: 'assets/models/surron-lbx.json', // converted from the owner's Roblox Studio export (no textures: colours by part)
+    frontWheel: /^(Wheellfchild001|Bikediscf001)/,
+    rearWheel: /^(Wheellrchild|Bikediscrgear308|Bikediscrbackbrake)/,
+    wheelF: /^Wheellfchild001tyre/, wheelR: /^Wheellrchild001tyre/,
+    forkLower: /^1circle004mfox40/,
+    fork: /^(Forkfrontmesh|Handlebara|Brakes001|Headlightl|Wiresandchains)/,
+    swing: /^(Swingarm|Part[12]$|Mudguard001)/,
+    // steering axis from the front axle up through the top clamp; swingarm pivot (file coordinates)
+    axisPts: [[-0.415, 9.585, -1.2], [0.598, 11.533, -1.2]], pivotPt: [2.64, 9.94, -1.2],
+    grips: /^Forkfrontmesh004/, seat: /^Attachmentsmesh002/, pegs: /^Body001grey/, tail: /^Fender1/,
+    paint: { plastics: ['Body', 'Tail'], frame: ['Frame'], swingarm: ['Swingarm'], rims: ['Rims'], seat: ['Seat'], grips: ['Grips'], fork: ['Fork'] },
+  },
 };
 
 const ready = {};
@@ -122,7 +135,7 @@ export function applyGlb(model) {
     const n = o.material.name;
     for (const [slot, names] of Object.entries(def.paint)) {
       if (!names.includes(n)) continue;
-      if (!byName[n]) { byName[n] = o.material.clone(); byName[n].userData.baseMap = o.material.map; (paintMats[slot] = paintMats[slot] || []).push(byName[n]); }
+      if (!byName[n]) { byName[n] = o.material.clone(); byName[n].userData.baseMap = o.material.map; byName[n].userData.baseColor = o.material.color.clone(); (paintMats[slot] = paintMats[slot] || []).push(byName[n]); }
       o.material = byName[n];
     }
   });
@@ -159,7 +172,11 @@ export function applyGlb(model) {
 
   // steering axis: through two parts on it (axisFrom), or the fork node's own up axis
   let axis, p0;
-  if (def.axisFrom) {
+  const fromFile = (p) => toG(new THREE.Vector3(...p).applyMatrix4(root.matrixWorld)); // a point in the file's own coordinates
+  if (def.axisPts) {
+    const lo = fromFile(def.axisPts[0]), hi = fromFile(def.axisPts[1]);
+    axis = hi.clone().sub(lo); axis.x = 0; axis.normalize(); p0 = hi; p0.x = 0;
+  } else if (def.axisFrom) {
     const lo = boxG(find(root, def.axisFrom[0])).getCenter(new THREE.Vector3()), hi = boxG(find(root, def.axisFrom[1])).getCenter(new THREE.Vector3());
     axis = hi.clone().sub(lo).normalize(); axis.x = 0; axis.normalize(); p0 = hi; p0.x = 0;
   } else {
@@ -180,7 +197,8 @@ export function applyGlb(model) {
   // swingarm pivot: the swingarm node's origin
   if (model.swing) {
     let piv;
-    if (def.swingPivotBox) { const b = boxG(find(root, def.swingPivotBox)); piv = new THREE.Vector3(0, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.035); }
+    if (def.pivotPt) piv = fromFile(def.pivotPt);
+    else if (def.swingPivotBox) { const b = boxG(find(root, def.swingPivotBox)); piv = new THREE.Vector3(0, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.035); }
     else piv = toG(new THREE.Vector3().setFromMatrixPosition(find(root, def.swingPivot)[0].matrixWorld));
     model.swing.position.set(0, piv.y, piv.z);
     model.swing.userData.piv = [0, piv.y, piv.z];
@@ -281,7 +299,7 @@ export function paintGlb(model, colors, wrap, wrapTex) {
     for (const m of list) {
       const w = wrap && (slot === 'frame' || slot === 'plastics') ? wrap : null;
       if (w) { m.map = wrapTex(w.id); m.color.set(w.color ?? 0xffffff); }
-      else { m.map = m.userData.baseMap || null; m.color.set(colors[slot] != null ? colors[slot] : 0xffffff); }
+      else { m.map = m.userData.baseMap || null; if (colors[slot] != null) m.color.set(colors[slot]); else m.color.copy(m.userData.baseColor); }
       m.needsUpdate = true;
     }
   }
