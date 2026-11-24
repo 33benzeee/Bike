@@ -52,7 +52,8 @@ export const GLB_BIKES = {
     swing: /^(Swingarm|Part[12]$|Mudguard001)/,
     // steering axis from the front axle up through the top clamp; swingarm pivot (file coordinates)
     axisPts: [[-0.415, 9.585, -1.2], [0.598, 11.533, -1.2]], pivotPt: [2.64, 9.94, -1.2],
-    grips: /^Forkfrontmesh004/, seat: /^Attachmentsmesh002/, pegs: /^Body001grey/, tail: /^Fender1/,
+    grips: /^Forkfrontmesh004/, seat: /^Attachmentsmesh002/, pegs: /^Body001grey/, tail: /^Attachmentsmesh002/,
+    hide: /^(Fender1|Mudguard001vehicle)/, // fender delete: no tail fender behind the seat, no rear mudguard
     paint: { plastics: ['Body', 'Tail'], frame: ['Frame'], swingarm: ['Swingarm'], rims: ['Rims'], seat: ['Seat'], grips: ['Grips'], fork: ['Fork'] },
   },
 };
@@ -72,7 +73,7 @@ export function loadBikeModels() {
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then((json) => new Promise((resolve, reject) => {
       const base = def.url.slice(0, def.url.lastIndexOf('/') + 1);
-      loader.parse(toGlb(json), base, (gltf) => { ready[v] = prep(gltf.scene); resolve(v); }, reject);
+      loader.parse(toGlb(json), base, (gltf) => { ready[v] = prep(gltf.scene, def); resolve(v); }, reject);
     }))
     .catch((e) => { console.warn(`bike model ${def.url} did not load; keeping the built-in one`, e); return null; })))
     .then((list) => list.filter(Boolean));
@@ -95,7 +96,9 @@ export function toGlb(json) {
 }
 
 // one-off tidy-up of a freshly loaded scene
-function prep(scene) {
+function prep(scene, def) {
+  // parts this bike goes without
+  if (def.hide) { const gone = []; scene.traverse((o) => { if (def.hide.test(o.name)) gone.push(o); }); for (const o of gone) o.removeFromParent(); }
   const mats = new Map();
   scene.traverse((o) => {
     if (!o.isMesh) return;
