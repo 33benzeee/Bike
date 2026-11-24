@@ -7,18 +7,18 @@ export const RIDER_MASS = 70;
 // ---- performance mods ------------------------------------------------------------
 // top / launch / mass / brake / grip are fractions added to the stock value.
 // cost is a multiple of the bike's upgradeBase. needs = mods that must be installed
-// first. group = only one of the group can be equipped at a time.
+// first. group = only one of the group can be equipped at a time. noPedal = motor bikes only.
 export const MODS = [
   { id: 'battery2', name: 'Battery Stage 2', pedal: 'Race Gearing', info: '52V → 60V', pinfo: 'Taller gears', top: 0.1, launch: 0.08, cost: 6 },
   { id: 'battery3', name: 'Battery Stage 3', pedal: 'Pro Gearing', info: '60V → 72V', pinfo: 'Even taller gears', top: 0.08, launch: 0.04, cost: 9, needs: ['battery2', 'brakes'] },
   { id: 'controller', name: 'Performance Controller', pedal: 'Stiff Cranks', info: 'More amps to the motor', pinfo: 'Nothing wasted in flex', top: 0.06, launch: 0.18, cost: 5 },
   { id: 'tune', name: 'High-Current Tune', pedal: 'Clipless Pedals', info: 'Controller pushed harder', pinfo: 'Pull up as well as push', top: 0.04, launch: 0.08, cost: 2.5, needs: ['controller'] },
   { id: 'sprocket', name: 'Big Rear Sprocket', info: 'Shorter gearing', top: -0.04, launch: 0.12, cost: 1.5 },
-  { id: 'weight', name: 'Weight Reduction', info: 'Lighter parts everywhere', mass: -0.1, cost: 4 },
+  { id: 'weight', name: 'Weight Reduction', info: 'Lighter parts everywhere', mass: -0.1, cost: 4, noPedal: true },
   { id: 'brakes', name: 'Brake Upgrade', info: 'Bigger discs and pads', brake: 0.25, cost: 1.5 },
   { id: 'tyresSport', name: 'Sport Tyres', info: 'Stickier compound', grip: 0.06, brake: 0.05, cost: 1.2, group: 'tyres' },
   { id: 'tyresRace', name: 'Race Tyres', info: 'Maximum grip', grip: 0.12, brake: 0.1, cost: 2.5, group: 'tyres' },
-  { id: 'footBrake', name: 'Foot Brake Kit', info: 'A rear brake pedal: BRAKE still works with your hands off the bars', price: 899, footBrake: true },
+  { id: 'footBrake', name: 'Foot Brake Kit', info: 'A rear brake pedal: BRAKE still works with your hands off the bars', price: 899, footBrake: true, noPedal: true },
 ];
 export const MOD_BY_ID = Object.fromEntries(MODS.map((m) => [m.id, m]));
 
@@ -206,6 +206,7 @@ export const BIKE_BY_ID = Object.fromEntries(BIKES.map((b) => [b.id, b]));
 
 export const modName = (bike, m) => (bike.cls === 'pedal' && m.pedal ? m.pedal : m.name);
 export const modInfo = (bike, m) => (bike.cls === 'pedal' && m.pinfo ? m.pinfo : m.info);
+export const modFits = (bike, m) => !(m.noPedal && bike.cls === 'pedal');
 export const modPrice = (bike, m) => m.price ?? Math.round((bike.upgradeBase * m.cost) / 10) * 10;
 
 // 'locked' (missing a prerequisite), 'buy', 'off' (installed, not fitted) or 'on'
@@ -235,7 +236,7 @@ export function effectiveSpec(bike, entry) {
   const mods = (entry && entry.mods) || {};
   let top = 1, launch = 1, mass = 1, brake = 1, grip = 1;
   for (const m of MODS) {
-    if (mods[m.id] !== 2) continue;
+    if (mods[m.id] !== 2 || !modFits(bike, m)) continue;
     top += m.top || 0; launch += m.launch || 0; mass += m.mass || 0; brake += m.brake || 0; grip += m.grip || 0;
   }
   const tune = SUSP_TUNES.find((t) => t.id === ((entry && entry.susp) || 'street')) || SUSP_TUNES[1];
@@ -254,7 +255,7 @@ export function effectiveSpec(bike, entry) {
     },
     grip: bike.grip * grip,
     brake: bike.brake * brake,
-    footBrake: mods.footBrake === 2,
+    footBrake: mods.footBrake === 2 && bike.cls !== 'pedal',
     susp: { kF: su.kF * tune.k, cF: su.cF * tune.c, tF: su.tF, kR: su.kR * tune.k, cR: su.cR * tune.c, tR: su.tR },
   };
 }

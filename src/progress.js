@@ -1,5 +1,5 @@
 // Save data (localStorage), stats and challenges.
-import { BIKES, newEntry, upgradeEntry } from './bikes.js';
+import { BIKES, BIKE_BY_ID, MODS, newEntry, upgradeEntry, modFits, modPrice } from './bikes.js';
 
 const KEY = 'wheelie-works-save-v2';
 
@@ -54,6 +54,11 @@ export class Save {
     // saves from before the day/night cycle start on it once
     if (!this.data.settings.cycleOn) { this.data.settings.time = 'cycle'; this.data.settings.cycleOn = 1; }
     for (const id of Object.keys(this.data.owned)) this.data.owned[id] = upgradeEntry(this.data.owned[id]); // older saves
+    // mods that were taken off the pedal bikes (weight reduction, foot brake kit): refund them
+    for (const [id, e] of Object.entries(this.data.owned)) {
+      const bike = BIKE_BY_ID[id];
+      if (bike) for (const m of MODS) if (e.mods[m.id] && !modFits(bike, m)) { this.data.cash += modPrice(bike, m); delete e.mods[m.id]; }
+    }
     if (!BIKES.some((b) => b.id === this.data.bike) || !this.data.owned[this.data.bike]) this.data.bike = 'wheelie';
     this._t = null; this.onChallenge = null;
   }

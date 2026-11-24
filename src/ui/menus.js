@@ -1,5 +1,5 @@
 // Title, pause, garage, settings, challenges and controls screens.
-import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
+import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modFits, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
 import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND, HELMET_MODEL_CREDIT } from '../helmets.js';
 import { RACES, MEDALS, FOOD, clock, medalCash } from '../jobs.js';
@@ -231,7 +231,7 @@ export class Menus {
     const s = this.game.save, st = perfStats(bike, entry), mph = s.data.settings.units === 'mph';
     const sp = (v) => Math.round(v * (mph ? 2.237 : 3.6)), unit = mph ? 'MPH' : 'KM/H';
     const fx = (m) => [m.top ? `${pct(m.top)} top speed` : '', m.launch ? `${pct(m.launch)} launch` : '', m.mass ? `${pct(m.mass)} weight` : '', m.brake ? `${pct(m.brake)} braking` : '', m.grip ? `${pct(m.grip)} grip` : ''].filter(Boolean).join(' · ');
-    const cards = MODS.map((m) => {
+    const cards = MODS.filter((m) => modFits(bike, m)).map((m) => {
       const state = modState(entry, m), price = modPrice(bike, m);
       let btn;
       if (state === 'on') btn = `<button class="mbtn off" data-a="mod" data-v="${m.id}">UNEQUIP</button>`;
