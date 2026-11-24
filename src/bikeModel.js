@@ -146,7 +146,7 @@ export function buildBike(spec, look) {
     tube(fp, seatClu, headTop, R);
     tube(fp, headBot, bb, R * 1.25);
     tube(fp, headBot, headTop, R * 1.4);
-    if (v !== 'fs') { // hardtail: chainstays and seatstays; a full-suspension bike has a swingarm instead
+    if (!spec.fullSus) { // hardtail: chainstays and seatstays; a full-suspension bike has a swingarm instead
       tube2(fp, [0.05, bb[1], bb[2]], [0.06, 0, 0], 0.012);
       tube2(fp, [0.03, seatClu[1], seatClu[2]], [0.06, 0, 0], 0.011);
     } else {
@@ -256,12 +256,12 @@ export function buildBike(spec, look) {
     : { spokes: 16, rim: spec.accent === 0x111111 ? 0xdedede : 0x2a2b2e, sprocket: 0.045 };
   const rimRR = buildWheel((slot) => P(rearWheel, slot), rR, spec.tireW, wopt);
   let swing = null;
-  if (style === 'emoto' || v === 'super73' || v === 'fs') {
-    const piv = style === 'emoto' ? [0, 0.07 * big, 0.43 * big] : v === 'fs' ? [0, bb[1] + 0.09, bb[2] + 0.01] : [0, bb[1] + 0.03, bb[2] - 0.02];
+  if (style === 'emoto' || v === 'super73' || spec.fullSus) {
+    const piv = style === 'emoto' ? [0, 0.07 * big, 0.43 * big] : spec.fullSus ? [0, bb[1] + 0.09, bb[2] + 0.01] : [0, bb[1] + 0.03, bb[2] - 0.02];
     swing = new THREE.Group(); swing.position.set(piv[0], piv[1], piv[2]); group.add(swing);
     const sb = P(swing, 'swingarm').color(style === 'emoto' ? 0x9a9da2 : 0x1c1d20);
     const len = Math.hypot(piv[1], piv[2]);
-    if (v === 'fs') {
+    if (spec.fullSus) {
       // a one-piece rear triangle on the main pivot: chainstays, seatstays up to a rocker that
       // drives the shock (built in bike space, then moved into the swingarm's frame)
       sb.color(paint);

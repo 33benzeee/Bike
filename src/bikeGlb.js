@@ -24,7 +24,7 @@ export const GLB_BIKES = {
     // customisation: which materials each paint slot recolours
     paint: { plastics: ['Body'], frame: ['Main-Frame', 'Subframe'], swingarm: ['Swingarm'], rims: ['Rims'], seat: ['Seat'], grips: ['Grips'], fork: ['Forks'] },
   },
-  fs: {
+  v10: {
     url: 'assets/models/santa-cruz-v10.json',
     credit: '"Santa Cruz V10 Downhill Mountain Bicycle" by Arsen Ismailov (sketchfab.com/fdgasd7), CC BY 4.0',
     creditUrl: 'https://sketchfab.com/3d-models/santa-cruz-v10-downhill-mountain-bicycle-65e16e9785de4a019e35f599e47c9ee6',
@@ -39,7 +39,7 @@ export const GLB_BIKES = {
     // pedal bike: the cranks turn, the rider's feet follow the pedals
     crank: /^(Plane008|Cylinder010|Circle001|1Circle023|1Cube010|Circle025|Plane009|Circle026|Plane019|Circle033|Plane002|Circle009)$/, bb: /^Circle025$/, pedalL: /^(Plane019|Plane002)$/,
     grips: /^Grips$/, seat: /^(Plane006|Plane007)$/, pegs: /^(Plane019|Plane002)$/, tail: /^(Plane006|Plane007)$/,
-    rims: /^M_Wheel_1$/,
+    rims: /^Cylinder0(06|07|46|47)_/, // the rims (by mesh name: their material was merged with the cables')
     paint: { frame: ['M_Frame'], swingarm: ['M_Frame'], fork: ['M_Fox40_1'], seat: ['M_Seat'], shock: ['MetalOrange'] },
   },
 };
@@ -100,7 +100,8 @@ function prep(scene) {
 }
 
 const find = (root, re) => { const out = []; root.traverse((o) => { if (o !== root && re.test(o.name)) out.push(o); }); return out; };
-const boxOf = (objs, into) => { const b = new THREE.Box3(), t = new THREE.Box3(); for (const o of objs) { o.updateWorldMatrix(true, true); t.setFromObject(o); b.union(t); } return into ? into.copy(b) : b; };
+// precise boxes (from the vertices): a rotated part's own bounding box overstates its size
+const boxOf = (objs, into) => { const b = new THREE.Box3(), t = new THREE.Box3(); for (const o of objs) { o.updateWorldMatrix(true, true); t.setFromObject(o, true); b.union(t); } return into ? into.copy(b) : b; };
 
 // Swap a procedural model's look for the detailed one, in place. Safe to call while riding.
 export function applyGlb(model) {
@@ -229,7 +230,7 @@ export function applyGlb(model) {
       wheel.updateMatrixWorld(true);
       const inv = new THREE.Matrix4().copy(wheel.matrixWorld).invert(), box = new THREE.Box3(), v = new THREE.Vector3();
       wheel.traverse((o) => {
-        if (!o.isMesh || !o.material || !(def.rims || /Rims/).test(o.material.name)) return;
+        if (!o.isMesh || !o.material || !(def.rims ? def.rims.test(o.name) : /Rims/.test(o.material.name))) return;
         const pos = o.geometry.attributes.position, m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
         for (let i = 0; i < pos.count; i += 3) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(m));
       });

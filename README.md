@@ -60,7 +60,7 @@ wall? Hold brake to paddle backwards.
   all come out of the simulation rather than being scripted. Four assist levels: *Easy*
   (auto-balance), *Normal* (shaped throttle, catches you at the balance point), *Semi-sim*
   (no catch, but it goes over slowly enough to save) and *Sim* (raw).
-- **Nine bikes** — Wheelie Bike, Trail MTB, Santa Cruz V10 (full-suspension downhill), Macfox X1, Super73-RX, Surron Light Bee X,
+- **Ten bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Santa Cruz V10 (downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
 - **Tricks and combos** — wheelies, manuals, stoppies, hops, air, flips, swerves, skids,
