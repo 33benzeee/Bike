@@ -145,7 +145,17 @@ export function applyGlb(model) {
   g.updateMatrixWorld(true);
   const gInv = new THREE.Matrix4().copy(g.matrixWorld).invert();
   const toG = (p) => p.applyMatrix4(gInv); // world -> bike space
-  const boxG = (objs) => { const b = boxOf(objs); const c = [b.min, b.max]; const out = new THREE.Box3(); for (let k = 0; k < 8; k++) out.expandByPoint(toG(new THREE.Vector3(c[k & 1].x, c[(k >> 1) & 1].y, c[(k >> 2) & 1].z))); return out; };
+  // exact box in bike space, from the vertices (a world box turned into bike space would grow
+  // whenever the bike is yawed or leaned, which shrank the wheels)
+  const boxG = (objs) => {
+    const out = new THREE.Box3(), m = new THREE.Matrix4(), v = new THREE.Vector3();
+    for (const o of objs) { o.updateWorldMatrix(true, true); o.traverse((c) => {
+      const pos = c.isMesh && c.geometry.attributes.position; if (!pos) return;
+      m.multiplyMatrices(gInv, c.matrixWorld);
+      for (let i = 0; i < pos.count; i++) out.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(m));
+    }); }
+    return out;
+  };
 
   // steering axis: through two parts on it (axisFrom), or the fork node's own up axis
   let axis, p0;
