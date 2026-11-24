@@ -24,6 +24,24 @@ export const GLB_BIKES = {
     // customisation: which materials each paint slot recolours
     paint: { plastics: ['Body'], frame: ['Main-Frame', 'Subframe'], swingarm: ['Swingarm'], rims: ['Rims'], seat: ['Seat'], grips: ['Grips'], fork: ['Forks'] },
   },
+  fs: {
+    url: 'assets/models/santa-cruz-v10.json',
+    credit: '"Santa Cruz V10 Downhill Mountain Bicycle" by Arsen Ismailov (sketchfab.com/fdgasd7), CC BY 4.0',
+    creditUrl: 'https://sketchfab.com/3d-models/santa-cruz-v10-downhill-mountain-bicycle-65e16e9785de4a019e35f599e47c9ee6',
+    frontWheel: /^(1WheelMiddleStud001|1Cube007|1Cube008|1Cube009|1Circle140|Cylinder046|Cylinder047|Circle141|Circle013|1Circle014|Circle142|Plane056)$/,
+    rearWheel: /^(1WheelMiddleStud002|1Cube001|1Cube002|1Cube003|1Circle001|Cylinder006|Cylinder007|Circle003|Circle004|1Circle002|Circle005|Plane003|Circle027|1Circle028|Circle029|Circle059)$/,
+    wheelF: /^(1WheelMiddleStud001|1Cube007|1Cube008|1Cube009|1Circle140|Cylinder046|Cylinder047|Circle141|Circle013)$/, wheelR: /^(1WheelMiddleStud002|1Cube001|1Cube002|1Cube003|1Circle001|Cylinder006|Cylinder007|Circle003)$/,
+    forkLower: /^(1Circle004|Circle007|Circle008|1Plane022|1Plane023|Circle036|Circle037|Circle038|Circle039|Circle040|Circle041|Plane024)$/,
+    fork: /^(1Circle003|1Circle005|Circle010|Plane|Circle006|Circle011|Circle012|Cylinder002|1Circle009|Handlebar|Grips|1Cylinder011|1Cylinder012|1Plane003|1Plane004|Plane021|Cube015|Cube016|Cylinder017|Cylinder018|Circle035|Circle042|Circle043|Circle044|Circle045|Circle046|Circle047|Circle048|Circle049|Circle050|Circle051|Circle052|Circle053|Circle054|Circle055|Circle056|Circle057|Circle058|Cube018|Cube036|Circle146|Circle147|Circle148|Circle149|Circle150|cable001|cable002)$/,
+    swing: /^(Cube001|1Plane020|1Plane057|Circle016|Circle017|Circle034|Circle143|Circle144|Circle145|Plane058|Cube017|Plane014|Plane015|Gear|1Plane016|1Plane017|1Plane018|Circle030|Circle031|Circle032|Gear004|cable003|cable004)$/,
+    // steering axis through the two fork crowns; swingarm pivot at the front of the rear triangle
+    axisFrom: [/^1Circle009$/, /^1Circle005$/], swingPivotBox: /^Cube001$/,
+    // pedal bike: the cranks turn, the rider's feet follow the pedals
+    crank: /^(Plane008|Cylinder010|Circle001|1Circle023|1Cube010|Circle025|Plane009|Circle026|Plane019|Circle033|Plane002|Circle009)$/, bb: /^Circle025$/, pedalL: /^(Plane019|Plane002)$/,
+    grips: /^Grips$/, seat: /^(Plane006|Plane007)$/, pegs: /^(Plane019|Plane002)$/, tail: /^(Plane006|Plane007)$/,
+    rims: /^M_Wheel_1$/,
+    paint: { frame: ['M_Frame'], swingarm: ['M_Frame'], fork: ['M_Fox40_1'], seat: ['M_Seat'], shock: ['MetalOrange'] },
+  },
 };
 
 const ready = {};
@@ -128,13 +146,18 @@ export function applyGlb(model) {
   const toG = (p) => p.applyMatrix4(gInv); // world -> bike space
   const boxG = (objs) => { const b = boxOf(objs); const c = [b.min, b.max]; const out = new THREE.Box3(); for (let k = 0; k < 8; k++) out.expandByPoint(toG(new THREE.Vector3(c[k & 1].x, c[(k >> 1) & 1].y, c[(k >> 2) & 1].z))); return out; };
 
-  // steering axis: the fork node's own up axis, through its origin
-  const forkNode = find(root, def.forkAxis)[0];
-  const axisW = new THREE.Vector3().setFromMatrixColumn(forkNode.matrixWorld, 1);
-  const axis = axisW.transformDirection(gInv).normalize();
+  // steering axis: through two parts on it (axisFrom), or the fork node's own up axis
+  let axis, p0;
+  if (def.axisFrom) {
+    const lo = boxG(find(root, def.axisFrom[0])).getCenter(new THREE.Vector3()), hi = boxG(find(root, def.axisFrom[1])).getCenter(new THREE.Vector3());
+    axis = hi.clone().sub(lo).normalize(); axis.x = 0; axis.normalize(); p0 = hi; p0.x = 0;
+  } else {
+    const forkNode = find(root, def.forkAxis)[0];
+    axis = new THREE.Vector3().setFromMatrixColumn(forkNode.matrixWorld, 1).transformDirection(gInv).normalize();
+    p0 = toG(new THREE.Vector3().setFromMatrixPosition(forkNode.matrixWorld));
+  }
   if (axis.y < 0) axis.negate();
   const rake = Math.atan2(-axis.z, axis.y);
-  const p0 = toG(new THREE.Vector3().setFromMatrixPosition(forkNode.matrixWorld));
   const fA = boxG(find(root, def.wheelF)).getCenter(new THREE.Vector3()); // front axle
   const forkTilt = model.fork.parent;
   forkTilt.position.copy(p0); forkTilt.rotation.set(-rake, 0, 0);
@@ -145,8 +168,9 @@ export function applyGlb(model) {
 
   // swingarm pivot: the swingarm node's origin
   if (model.swing) {
-    const sw = find(root, def.swingPivot)[0];
-    const piv = toG(new THREE.Vector3().setFromMatrixPosition(sw.matrixWorld));
+    let piv;
+    if (def.swingPivotBox) { const b = boxG(find(root, def.swingPivotBox)); piv = new THREE.Vector3(0, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.035); }
+    else piv = toG(new THREE.Vector3().setFromMatrixPosition(find(root, def.swingPivot)[0].matrixWorld));
     model.swing.position.set(0, piv.y, piv.z);
     model.swing.userData.piv = [0, piv.y, piv.z];
     model.swing.rotation.set(Math.atan2(-piv.y, piv.z), 0, 0);
@@ -161,6 +185,21 @@ export function applyGlb(model) {
   for (const o of find(root, def.forkLower)) model.forkLower.attach(o);
   for (const o of find(root, def.fork)) model.fork.attach(o);
   if (model.swing) for (const o of find(root, def.swing)) model.swing.attach(o);
+  // cranks: re-centre the crank group on this model's bottom bracket, with the left pedal at
+  // the angle the rider's pedalling expects (straight down at rotation 0)
+  if (def.crank && model.crank) {
+    model.crank.rotation.set(0, 0, 0);
+    const bb = boxG(find(root, def.bb)).getCenter(new THREE.Vector3()); bb.x = 0;
+    const peds = find(root, def.pedalL).map((o) => boxG([o]).getCenter(new THREE.Vector3())), left = peds.sort((a, b) => b.x - a.x)[0];
+    model.crank.position.copy(bb); model.crank.updateMatrixWorld(true);
+    const inner = pivot(model.crank);
+    for (const o of find(root, def.crank)) inner.attach(o);
+    const dy = left.y - bb.y, dz = left.z - bb.z;
+    model.crankLen = Math.hypot(dy, dz);
+    inner.rotation.x = -Math.atan2(-dz, -dy);
+    model.anchors.bb.copy(bb);
+    model.glbPedalX = left.x;
+  }
   // tyres sized to what the physics rolls on
   const rF = boxG(find(FW, def.wheelF)).getSize(new THREE.Vector3()).y / 2, rR = boxG(find(RW, def.wheelR)).getSize(new THREE.Vector3()).y / 2;
   FW.scale.setScalar(spec.rF / rF); RW.scale.setScalar(spec.rR / rR);
@@ -174,9 +213,10 @@ export function applyGlb(model) {
   model.gripR.position.copy(new THREE.Vector3(-gx, gy, gz).applyMatrix4(toFork));
   const sb = boxG(find(root, def.seat));
   model.anchors.seat.set(0, sb.max.y - 0.03, (sb.min.z + sb.max.z) / 2 + 0.04);
-  const pb = boxG(find(root, def.pegs));
+  const pb = model.glbPedalX != null ? new THREE.Box3(model.anchors.bb.clone(), model.anchors.bb.clone()) : boxG(find(root, def.pegs)); // pedals now turn with the cranks
   const py = (pb.min.y + pb.max.y) / 2, pz = (pb.min.z + pb.max.z) / 2;
-  model.anchors.pegL.set(pb.max.x - 0.04, py, pz); model.anchors.pegR.set(-pb.max.x + 0.04, py, pz);
+  const px = model.glbPedalX ?? pb.max.x - 0.04;
+  model.anchors.pegL.set(px, py, pz); model.anchors.pegR.set(-px, py, pz);
   const tb = boxG(find(root, def.tail));
   model.anchors.tail.set(0, tb.min.y + (tb.max.y - tb.min.y) * 0.55, tb.min.z + 0.04);
   if (model.flag) { model.flag.position.copy(model.anchors.tail); model.flag.position.y -= 0.03; }
@@ -189,7 +229,7 @@ export function applyGlb(model) {
       wheel.updateMatrixWorld(true);
       const inv = new THREE.Matrix4().copy(wheel.matrixWorld).invert(), box = new THREE.Box3(), v = new THREE.Vector3();
       wheel.traverse((o) => {
-        if (!o.isMesh || !o.material || !/Rims/.test(o.material.name)) return;
+        if (!o.isMesh || !o.material || !(def.rims || /Rims/).test(o.material.name)) return;
         const pos = o.geometry.attributes.position, m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
         for (let i = 0; i < pos.count; i += 3) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(m));
       });

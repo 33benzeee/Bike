@@ -60,7 +60,7 @@ wall? Hold brake to paddle backwards.
   all come out of the simulation rather than being scripted. Four assist levels: *Easy*
   (auto-balance), *Normal* (shaped throttle, catches you at the balance point), *Semi-sim*
   (no catch, but it goes over slowly enough to save) and *Sim* (raw).
-- **Nine bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Macfox X1, Super73-RX, Surron Light Bee X,
+- **Nine bikes** — Wheelie Bike, Trail MTB, Santa Cruz V10 (full-suspension downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
 - **Tricks and combos** — wheelies, manuals, stoppies, hops, air, flips, swerves, skids,
@@ -126,6 +126,11 @@ The Stark Varg is drawn with "Stark Varg SM"
 Hari Yojuta (https://sketchfab.com/hariroosi30), licensed under CC-BY-4.0
 (http://creativecommons.org/licenses/by/4.0/). It was simplified and re-textured at smaller
 sizes for the browser; see `assets/models/stark-varg-LICENSE.txt`.
+
+The Santa Cruz V10 is drawn with "Santa Cruz V10 Downhill Mountain Bicycle"
+(https://sketchfab.com/3d-models/santa-cruz-v10-downhill-mountain-bicycle-65e16e9785de4a019e35f599e47c9ee6)
+by Arsen Ismailov (https://sketchfab.com/fdgasd7), licensed under CC-BY-4.0, simplified for the
+browser; see `assets/models/santa-cruz-v10-LICENSE.txt`.
 
 The helmets use "Full Face MTB Helmet"
 (https://sketchfab.com/3d-models/full-face-mtb-helmet-2b0bb690bbca4453b6d385e4ee0f3294) by
