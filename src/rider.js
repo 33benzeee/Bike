@@ -246,7 +246,7 @@ export class Rider {
     w.stand += ((tr.stand ? 1 : 0) - w.stand) * k;
     w.drag += ((tr.drag ? 1 : 0) - w.drag) * k;
     // a hand on the tarmac counts as a hand drag
-    w.hand += ((this.handContact && w.one > 0.5 && w.no < 0.5 ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
+    w.hand += ((this.handContact && (w.one > 0.5 || w.no > 0.5) ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
     w.stop += ((stopped ? 1 : 0) - w.stop) * Math.min(1, dt * 6);
     // in a wheelie the feet hook under the pegs; with the foot brake kit the right foot presses it
     const wheeling = phys.rearContact && !phys.frontContact && phys.pitch > 0.15;
@@ -357,10 +357,8 @@ export class Rider {
   // the shoulder. It lags behind when the bike moves, swings with the bumps, and when the
   // rider leans far enough it touches the road and drags behind. Returns a rider-space target.
   _swingHand(s, dt, root, model, ground) {
-    // on a no-hander the rider holds both hands up off the road: no reaching down, no dragging
-    const keepUp = this.w.no > 0.5;
-    const st = this._sw[s], sx = s === 0 ? 1 : -1, hangHere = s === 0 && !keepUp ? this.hang : 0, overHere = keepUp ? 0 : this.over || 0;
-    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * Math.max(hangHere, Math.min(1, overHere * 1.5))); // reaching down for the road
+    const st = this._sw[s], sx = s === 0 ? 1 : -1, hangHere = s === 0 ? this.hang : 0;
+    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * Math.max(hangHere, Math.min(1, (this.over || 0) * 1.5))); // reaching down for the road
     g.localToWorld(S);
     dt = Math.min(dt, 1 / 30);
     if (!st.ok) { st.prev.copy(S); st.ok = true; }
@@ -383,11 +381,7 @@ export class Rider {
     // hand has swung into)
     const gy = (this.terrain ? this.terrain.height(P.x, P.z) : ground ?? -1e9) + 0.045;
     const onRoad = ground === undefined || gy < ground + 0.6;
-    if (keepUp) {
-      // the elbow bends to keep the glove a hand's width clear of the tarmac
-      reach();
-      if (P.y < gy + 0.15) { P.y = gy + 0.15; Q.y = P.y; }
-    } else if (P.y <= gy && onRoad) {
+    if (P.y <= gy && onRoad) {
       // the glove stops on the road and drags along: friction, then while the shoulder is close
       // enough it stays down and is pulled along behind it, instead of the arm lifting it off
       P.y = gy; Q.y = P.y;
@@ -402,7 +396,7 @@ export class Rider {
     const l = this._hl.copy(P); g.worldToLocal(l);
     if (l.x * sx < SHOULDER_W * 0.7) { l.x = sx * SHOULDER_W * 0.7; g.localToWorld(l); P.copy(l); }
     // within a few centimetres counts: the glove is skimming the tarmac
-    st.contact = !keepUp && P.y <= gy + 0.07 && onRoad;
+    st.contact = P.y <= gy + 0.07 && onRoad;
     st.prev.copy(S);
     this.handContacts[s] = st.contact;
     this.handContact = this._sw[0].contact || this._sw[1].contact;
