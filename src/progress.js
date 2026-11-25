@@ -12,7 +12,7 @@ export const CHALLENGES = [
   { id: 'wt45', name: 'Never Coming Down', desc: 'Hold a wheelie for 45 s', reward: 2000, stat: 'wheelieTime', goal: 45 },
   { id: 'nh5', name: 'Look Ma', desc: 'No-hander wheelie for 5 s', reward: 400, stat: 'var_no', goal: 5 },
   { id: 'ss5', name: 'Standing Ovation', desc: 'Seat-stander wheelie for 5 s', reward: 600, stat: 'var_stand', goal: 5 },
-  { id: 'hd3', name: 'Knuckle Sparks', desc: 'One-hand wheelie leaned over far enough to drag your hand, for 3 s', reward: 700, stat: 'var_hand', goal: 3 },
+  { id: 'hd3', name: 'Knuckle Sparks', desc: 'One-hand wheelie deep enough to drag your free hand on the road, for 3 s', reward: 700, stat: 'var_hand', goal: 3 },
   { id: 'st12', name: 'Nose Job', desc: 'Stoppie for 12 m', reward: 400, stat: 'stoppieDist', goal: 12 },
   { id: 'c2k', name: 'Warming Up', desc: 'Bank a 2,000 point combo', reward: 300, stat: 'combo', goal: 2000 },
   { id: 'c10k', name: 'Combo Machine', desc: 'Bank a 10,000 point combo', reward: 1500, stat: 'combo', goal: 10000 },

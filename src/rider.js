@@ -70,7 +70,7 @@ export class Rider {
     this.leg = [0, 1].map(() => ({ up: limb(0.072, mats.pants), fore: limb(0.054, mats.pants), foot: boxM(0.095, 0.075, 0.25, mats.shoes), mid: V(), end: V(), root: V(), target: V() }));
 
     this.w = { one: 0, no: 0, stand: 0, drag: 0, hand: 0, stop: 0, air: 0 };
-    this.hang = 0; this.handContact = false; this.terrain = null;
+    this.handContact = false; this.terrain = null;
     this.hip = V(); this.torsoPitch = 0.3; this.t = 0; this.crankA = 0;
     this.firstPerson = false;
     this.ragdoll = false; this.walking = false;
@@ -277,12 +277,7 @@ export class Rider {
     hip.z += standG * 0.08 - superman * 0.25;
     hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
-    // one-hander: lean the bike towards the free (left) hand and the rider hangs off that side
-    const hangT = w.one * (1 - w.no) * clamp((phys.lean - 0.05) / 0.25, 0, 1) * (1 - w.air);
-    this.hang += (hangT - this.hang) * Math.min(1, dt * 5);
-    hip.x += this.hang * 0.24; hip.y -= this.hang * 0.22;
-    this.torso.position.copy(hip);
-    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08 - this.hang * 1.05, 'YXZ');
+    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08, 'YXZ');
     this.head.rotation.set(clamp(0.12 + phys.pitch - this.torsoPitch, -0.9, 0.8), phys.steer * 0.3, 0);
     this.torso.updateMatrix();
 
@@ -357,8 +352,9 @@ export class Rider {
   // the shoulder. It lags behind when the bike moves, swings with the bumps, and when the
   // rider leans far enough it touches the road and drags behind. Returns a rider-space target.
   _swingHand(s, dt, root, model, ground) {
-    const st = this._sw[s], sx = s === 0 ? 1 : -1, hangHere = s === 0 ? this.hang : 0;
-    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * Math.max(hangHere, Math.min(1, (this.over || 0) * 1.5))); // reaching down for the road
+    const st = this._sw[s], sx = s === 0 ? 1 : -1;
+    // in a deep wheelie the rider reaches down for the road
+    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * Math.min(1, (this.over || 0) * 1.5));
     g.localToWorld(S);
     dt = Math.min(dt, 1 / 30);
     if (!st.ok) { st.prev.copy(S); st.ok = true; }

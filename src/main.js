@@ -673,8 +673,8 @@ class Game {
       frontLever = false; inp.hop = false; inp.steer *= 0.35;
       if (inp.lean > 0) inp.lean = 0;
     } else if (w.one > 0.5) {
-      // one hand: you can't yank the bars or hop
-      inp.hop = false; if (inp.lean > 0) inp.lean = 0;
+      // one hand: you can't hop, but throwing your weight back still pops a wheelie
+      inp.hop = false;
     }
     if (w.stand > 0.5 && w.air < 0.5) {
       // standing on the seat: feet are off the pedals
@@ -911,8 +911,7 @@ class Game {
       return;
     }
     const r = sp.rR;
-    // hanging off a one-hander pulls the bike over a little further towards the free hand
-    const lean = p.lean + this.rider.w.stop * 0.09 + this.rider.hang * 0.25;
+    const lean = p.lean + this.rider.w.stop * 0.09;
     const sl = Math.sin(lean), cl = Math.cos(lean);
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);
