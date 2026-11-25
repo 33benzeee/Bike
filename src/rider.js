@@ -259,23 +259,22 @@ export class Rider {
     const lean = phys.comShift, hop = phys.hopCharge / 0.3;
     const wheelie = clamp(phys.pitch, -0.7, 1.2);
     const standG = w.stand * (1 - w.air), superman = w.stand * w.air;
-    // past vertical the bike's top faces the road, so the rider tucks flat over the tank
-    // towards the bars, keeping their back and head as close to the bike as they can
-    const deepT = wheeling && !phys.crashed && model.spec.loopAngle > 1.6 ? clamp((phys.pitch - 1.4) / 0.4, 0, 1) * (1 - w.stand) : 0;
-    this.deep = (this.deep || 0) + (deepT - (this.deep || 0)) * Math.min(1, dt * 8);
-    const deep = this.deep;
+    // deep wheelies (bikes that go past vertical): the rider stays sat on the seat and keeps
+    // leaning back as the bike comes over, instead of rotating with it
+    const overT = wheeling && !phys.crashed && model.spec.loopAngle > 1.6 ? Math.max(0, phys.pitch - 1.2) * (1 - w.stand) : 0;
+    this.over = (this.over || 0) + (overT - (this.over || 0)) * Math.min(1, dt * 8);
+    const over = this.over;
 
     // ---- hips & torso
     const base = cls === 'emoto' ? 0.3 : cls === 'moped' ? 0.2 : cls === 'mtb' ? 0.52 : 0.36;
     let pitch = base + (wheelie > 0 ? wheelie * 0.5 : wheelie * 0.35) - lean * 0.2 + hop * 0.25 - w.no * 0.3 + standG * 0.5 + superman * 0.85;
-    pitch = clamp(pitch, -0.25, 1.35) + deep * 0.6;
+    pitch = clamp(pitch, -0.25, 1.35) + over * 0.95;
     this.torsoPitch += (pitch - this.torsoPitch) * Math.min(1, dt * 10);
     const hip = this.hip;
     hip.set(0, A.seat.y + 0.09, A.seat.z - 0.02);
     hip.z += -lean * 0.11 - Math.max(0, wheelie) * 0.06;
     hip.y += -hop * 0.07 + standG * 0.43 + superman * 0.28 + Math.abs(lean) * 0.02;
     hip.z += standG * 0.08 - superman * 0.25;
-    hip.y += deep * 0.04; hip.z += deep * 0.16;
     hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
     // one-hander: lean the bike towards the free (left) hand and the rider hangs off that side
@@ -359,7 +358,7 @@ export class Rider {
   // rider leans far enough it touches the road and drags behind. Returns a rider-space target.
   _swingHand(s, dt, root, model, ground) {
     const st = this._sw[s], sx = s === 0 ? 1 : -1, hangHere = s === 0 ? this.hang : 0;
-    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * hangHere); // reaching down for the road
+    const g = model.group, S = st.S.copy(root), P = st.P, Q = st.Q, L = (L_UPPER + L_FORE) * (1.02 + 0.4 * Math.max(hangHere, Math.min(1, (this.over || 0) * 1.5))); // reaching down for the road
     g.localToWorld(S);
     dt = Math.min(dt, 1 / 30);
     if (!st.ok) { st.prev.copy(S); st.ok = true; }
@@ -378,21 +377,26 @@ export class Rider {
     P.x += vx; P.y += vy - 9.81 * dt * dt; P.z += vz;
     // the arm can bend but not stretch
     const reach = () => { const d = P.distanceTo(S); if (d > L) P.sub(S).multiplyScalar(L / d).add(S); };
-    reach();
+    // the road under the glove (only the ground below the shoulder: never a wall or roof the
+    // hand has swung into)
+    const gy = (this.terrain ? this.terrain.height(P.x, P.z) : ground ?? -1e9) + 0.045;
+    const onRoad = ground === undefined || gy < ground + 0.6;
+    if (P.y <= gy && onRoad) {
+      // the glove stops on the road and drags along: friction, then while the shoulder is close
+      // enough it stays down and is pulled along behind it, instead of the arm lifting it off
+      P.y = gy; Q.y = P.y;
+      Q.x += (P.x - Q.x) * 0.8; Q.z += (P.z - Q.z) * 0.8;
+      const dy = S.y - gy;
+      if (dy < L * 0.98) {
+        const ex = P.x - S.x, ez = P.z - S.z, hd = Math.hypot(ex, ez), maxH = Math.sqrt(L * L - dy * dy);
+        if (hd > maxH) { P.x = S.x + (ex * maxH) / hd; P.z = S.z + (ez * maxH) / hd; }
+      } else reach();
+    } else reach();
     // stay out on this arm's side of the body
     const l = this._hl.copy(P); g.worldToLocal(l);
     if (l.x * sx < SHOULDER_W * 0.7) { l.x = sx * SHOULDER_W * 0.7; g.localToWorld(l); P.copy(l); }
-    // the road: the glove stops on it and drags along
-    const gy = (this.terrain ? this.terrain.height(P.x, P.z) : ground ?? -1e9) + 0.045;
-    // (only the ground below the shoulder: never a wall or roof the hand has swung into)
-    const onRoad = ground === undefined || gy < ground + 0.6;
     // within a few centimetres counts: the glove is skimming the tarmac
     st.contact = P.y <= gy + 0.07 && onRoad;
-    if (P.y <= gy && onRoad) {
-      P.y = gy; Q.y = P.y;
-      Q.x += (P.x - Q.x) * 0.8; Q.z += (P.z - Q.z) * 0.8; // friction: the tarmac doesn't move
-      reach();
-    }
     st.prev.copy(S);
     this.handContacts[s] = st.contact;
     this.handContact = this._sw[0].contact || this._sw[1].contact;

@@ -582,8 +582,10 @@ export class BikePhysics {
     if (Math.abs(this.lat) > 7.5 && any) { this._crash('slide', Math.abs(this.lat)); return; }
     // rider's head hitting the ground (upside-down or flat landings)
     const st = Math.sin(this.pitch), ct = Math.cos(this.pitch);
-    // past vertical the rider tucks flat over the tank towards the bars (see rider.js)
-    const deep = rc && !fc && sp.loopAngle > 1.6 ? clamp((this.pitch - 1.4) / 0.4, 0, 1) : 0, fx = 0.05 + 0.4 * deep, fy = 0.75 - 0.3 * deep;
+    // past ~70° the rider of a bike that goes past vertical keeps leaning back (see rider.js),
+    // so their head turns forward relative to the bike
+    const ra = rc && !fc && sp.loopAngle > 1.6 ? Math.max(0, this.pitch - 1.2) * 0.95 : 0;
+    const fx = 0.05 * Math.cos(ra) + 0.75 * Math.sin(ra), fy = 0.75 * Math.cos(ra) - 0.05 * Math.sin(ra);
     const hs = fx * ct - fy * st, hy = fx * st + fy * ct;
     const hx = Math.sin(this.yaw), hz = Math.cos(this.yaw);
     if (this.y + hy < this.terrain.height(this.x + hx * hs, this.z + hz * hs) + 0.12) { this._crash('slam', Math.hypot(this.vx, this.vy, this.vz)); return; }
