@@ -73,7 +73,7 @@ export class BikePhysics {
     this.pullT = 0; this.pullDir = 0; this._leanPrev = 0;
     this.crashed = false; this.crashReason = ''; this.crashT = 0;
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
-    this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airU = 0; this._cn = 0; this._cny = 1; this._airStartPitch = 0;
+    this.groundPitch = 0; this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airU = 0; this._cn = 0; this._cny = 1; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
     this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
@@ -158,11 +158,26 @@ export class BikePhysics {
 
     const ct = Math.cos(this.pitch), st = Math.sin(this.pitch);
     let cx = sp.com[0] - this.comShift * sp.leanShift + (inp.comDX || 0);
-    // climbing something steep, the rider gets over the bars to keep the front down
-    if (inp.assist > 0 && !this.committed && st > 0 && this.frontG > 0.3) cx += Math.min(0.28, st * 0.62) * this.frontG;
+    // climbing something steep, the rider gets over the bars to keep the front down. Judged
+    // from the ground under the bike, not the bike's own pitch: if the front goes light on a
+    // climb they stay forward instead of sitting back and letting it bounce
+    // how steeply the ground under the bike climbs (radians), measured a little past both wheels
+    // so a kerb or a stair edge doesn't read as a hill
+    let gA = 0;
+    {
+      const bR = sp.com[0] + 0.6, bF = L - sp.com[0] + 0.6, gR = T.height(this.x - hx * bR, this.z - hz * bR), gF = T.height(this.x + hx * bF, this.z + hz * bF);
+      gA = Math.atan2(gF - gR, bR + bF);
+    }
+    if (inp.assist > 0 && !this.committed) {
+      const byBike = st > 0 && this.frontG > 0.3 ? Math.min(0.28, st * 0.62) * this.frontG : 0;
+      cx += Math.max(byBike, gA > 0 ? Math.min(0.28, Math.sin(gA) * 0.62) : 0);
+    }
+    this.groundPitch = gA;
+    const gUp = Math.max(0, gA); // a wheelie up a hill is measured from the hill, not from level
     // on the gas without pulling up, a rider on a torquey bike tucks forward over the tank so
     // the pull goes into speed instead of lifting the front
-    if (sp.tuck && !this.committed && this.throttle > 0.5) cx += sp.tuck * (this.throttle - 0.5) * 2;
+    // (not up a hill: they're already leaning into the climb, and more weight off the back tyre spins it)
+    if (sp.tuck && !this.committed && this.throttle > 0.5) cx += sp.tuck * (this.throttle - 0.5) * 2 * clamp(1 - gUp / 0.2, 0, 1);
     const cy = sp.com[1] + (inp.comDY || 0);
     this.cx = cx; this.cy = cy;
 
@@ -193,6 +208,16 @@ export class BikePhysics {
     // bikes get a bigger surplus and are easier to loop.
     let driveCap = Infinity;
     const semi = assist > 0 && assist < 1;
+    // With both wheels down, the extra pull (beyond what the climb itself takes) that would lift
+    // the front. On a hill only the part of the weight pressing into the slope holds the front
+    // down (weight * cos(slope)), while the part along it eats into the drive, so up a steep
+    // hill there is little pull to spare before the front comes up. On the flat this is just
+    // weight * (centre of mass ahead of the rear tyre) / (its height).
+    let liftF;
+    {
+      const pr = this.pitch - gA, cr = Math.cos(pr), sr = Math.sin(pr);
+      liftF = m * G * Math.max(0.03, (Math.cos(gA) * Math.max(0.06, cx * cr - cy * sr)) / (cx * sr + cy * cr + sp.rR) - Math.max(0, Math.sin(gA)));
+    }
     if (assist > 0) {
       if (this.rearContact && !this.frontContact) {
         const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
@@ -200,7 +225,7 @@ export class BikePhysics {
         const Fhold = xc > 0 ? (m * G * xc) / yc : 0;
         if (assist >= 2 && th > 0.1) {
           const bp = Math.atan2(cx, cy);
-          const tgt = this.committed ? bp - (u < sp.drive.topSpeed * 0.8 ? 0.07 : 0.01) : (sp.unruly || 0) * 1.6 + 0.03;
+          const tgt = this.committed ? bp - (u < sp.drive.topSpeed * 0.8 ? 0.07 : 0.01) : (sp.unruly || 0) * 1.6 + 0.03 + gUp;
           const a = clamp(14 * (tgt - this.pitch) - 6 * this.pitchVel, -9, sp.wheelieGain);
           let F = Fhold + (a * Ie) / yc;
           if (F < 0) {
@@ -216,7 +241,7 @@ export class BikePhysics {
           // past the balance point the rider is already rolling off
           if (xc < 0) surplus *= semi ? SEMI.past : 0.12;
           // not pulled up on purpose: float a low power-wheelie instead of looping
-          if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
+          if (!this.committed) surplus = clamp(10 * ((sp.unruly || 0) * 1.6 + 0.03 + gUp - this.pitch) - 4 * this.pitchVel, -sp.wheelieGain, surplus);
           driveCap = Math.max(0, th * (Fhold + (surplus * Ie) / yc)); th = 1;
         }
         if (!this.committed) {
@@ -227,9 +252,7 @@ export class BikePhysics {
         }
       } else if (this.frontContact) {
         // drive force that would just lift the front, plus what the slope itself needs
-        const xg = Math.max(0.06, cx * ct - cy * st), yg = cx * st + cy * ct + sp.rR;
-        const slope = m * G * Math.max(0, st);
-        const lift = (m * G * xg) / yg;
+        const slope = m * G * Math.max(0, st), lift = liftF;
         // seated and not pulling, the rider keeps the front down (mostly — the
         // big bikes still power-wheelie unless you lean over the bars)
         if (inp.lean < 0.3) driveCap = slope + lift * (0.8 + (sp.unruly || 0) * (1 + Math.min(0, inp.lean)));
@@ -243,7 +266,7 @@ export class BikePhysics {
       if (!this.frontContact) {
         const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
         driveCap = Math.max(0, th * (Fhold + (2 * sp.wheelieGain * (1 - this.pitchVel / (2 * sp.wheelieRate)) * Ie) / yc));
-      } else driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * 2;
+      } else driveCap = m * G * Math.max(0, st) + liftF * 2;
     } else if (!this.committed && th > 0) {
       // Sim: raw once you pull the bike up yourself. Until then the rider's weight
       // is forward, so full throttle pops the front but never carries it to the
@@ -251,11 +274,11 @@ export class BikePhysics {
       const xc = cx * ct - cy * st, yc = cx * st + cy * ct + sp.rR;
       if (this.rearContact && !this.frontContact) {
         const Ie = I + m * xc * xc, Fhold = xc > 0 ? (m * G * xc) / yc : 0;
-        const soft = 0.12 + (sp.unruly || 0) * 1.2;
+        const soft = 0.12 + (sp.unruly || 0) * 1.2 + gUp;
         const a = clamp(10 * (soft - this.pitch) - 4 * this.pitchVel, -2 * sp.wheelieGain, 2 * sp.wheelieGain);
         driveCap = Math.max(0, Fhold + (a * Ie) / yc);
       } else if (this.frontContact) {
-        driveCap = m * G * Math.max(0, st) + ((m * G * Math.max(0.06, xc)) / yc) * (1.1 + (sp.unruly || 0));
+        driveCap = m * G * Math.max(0, st) + liftF * (1.1 + (sp.unruly || 0));
       }
     }
     this.effThrottle = th;
@@ -580,7 +603,8 @@ export class BikePhysics {
       if (this.pitch > Math.PI) { this.pitch -= 2 * Math.PI; this.flipAccum += 1; this.events.push({ type: 'flip', dir: 1 }); }
       else if (this.pitch < -Math.PI) { this.pitch += 2 * Math.PI; this.flipAccum += 1; this.events.push({ type: 'flip', dir: -1 }); }
     }
-    this.wheelieT = rc && !fc && this.pitch > 0.17 ? this.wheelieT + dt : 0;
+    // measured from the ground under the bike: a light front wheel on a steep climb isn't a wheelie
+    this.wheelieT = rc && !fc && this.pitch - this.groundPitch > 0.17 ? this.wheelieT + dt : 0;
 
     // the tail can drag on the ground (12 o'clock); only going well past it, or
     // running out of speed while scraping, throws you off the back

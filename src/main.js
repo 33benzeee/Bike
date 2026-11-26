@@ -792,7 +792,7 @@ class Game {
       speed: pp.speed, units: st.units, cash: this.save.cash, heat: cp.heat, wanted: cp.wanted, seen: cp.seen, hidden: cp.hidden,
       evade: cp.evadeNeed ? cp.evade / cp.evadeNeed : 0, suspicion: cp.suspicion, watcher: cp.watcher, bust: cp.bust,
       combo: this.tricks.combo, label: this.tricks.label, zone: this.tricks.zone,
-      wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
+      wheelie: { show: !p.crashed && p.rearContact && !p.frontContact && p.pitch - p.groundPitch > 0.12, pitch: p.pitch, bp: p.balanceAngle(), loop: spec.loopAngle },
     });
     if (this.frameN % 2 === 0) hud.minimap(pp.x, pp.z, pp.yaw, cp.units, cp.wanted, this.waypoints);
     this._world(dt, pp);

@@ -249,7 +249,7 @@ export class Rider {
     w.hand += ((this.handContact && (w.one > 0.5 || w.no > 0.5) ? 1 : 0) - w.hand) * Math.min(1, dt * 8);
     w.stop += ((stopped ? 1 : 0) - w.stop) * Math.min(1, dt * 6);
     // in a wheelie the feet hook under the pegs; with the foot brake kit the right foot presses it
-    const wheeling = phys.rearContact && !phys.frontContact && phys.pitch > 0.15;
+    const wheeling = phys.rearContact && !phys.frontContact && phys.pitch - (phys.groundPitch || 0) > 0.15;
     this.hook = (this.hook || 0) + ((wheeling ? 1 : 0) - (this.hook || 0)) * Math.min(1, dt * 7);
     const fb = model.spec.footBrake && phys.brakeIn > 0.15 && !phys.crashed ? Math.min(1, phys.brakeIn) : 0;
     this.press = (this.press || 0) + (fb - (this.press || 0)) * Math.min(1, dt * 14);

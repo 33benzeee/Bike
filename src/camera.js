@@ -96,7 +96,8 @@ export class CameraRig {
     } else if (id === 'chase' || id === 'far' || id === 'move') {
       const far = id === 'far', turned = Math.min(1, Math.abs(this.lookYaw) * 2 + Math.abs(this.lookPitch) * 2);
       // follow where the bike is going, not every twitch of the bars
-      const travel = speed > 2.5 ? Math.atan2(phys.vx, phys.vz) : phys.yaw;
+      // (rolling backwards, the bike still faces the way it was: don't swing round to the travel)
+      const travel = phys.speed > 2.5 ? Math.atan2(phys.vx, phys.vz) : phys.speed < -2.5 ? Math.atan2(-phys.vx, -phys.vz) : phys.yaw;
       const want = phys.yaw + angDiff(travel, phys.yaw) * 0.5;
       this.yaw += angDiff(want, this.yaw) * Math.min(1, dt * (far ? 3 : 4.2));
       const wheelie = phys.wheelieT > 0.15 || (phys.pitch < -0.25 && phys.frontContact);

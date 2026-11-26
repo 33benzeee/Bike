@@ -131,6 +131,7 @@ export function buildDesert(terrain) {
   const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const R = (a, b) => a + rnd() * (b - a);
   terrain.bounds = HALF;
+  terrain.fieldMaxSlope = 2.5; // smooth mountainsides: let the tyres feel how steep they really are
 
   // ---- the ground: natural height on the grid, then flattened where things are built
   const H = new Float32Array(NG * NG);

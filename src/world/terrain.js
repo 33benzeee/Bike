@@ -25,6 +25,11 @@ export class Terrain {
     this._stamp = 0;
     this.bounds = 400;
     this.field = null; // optional rolling ground under everything (the desert): see setField
+    // steepest ground a tyre feels. Kerbs, stair edges and the sharp edges of built jumps would
+    // otherwise shove the wheel straight back. The natural ground of a height field (the desert's
+    // smooth mountainsides) can be allowed more, or tyres sink into anything steeper.
+    this.maxSlope = 0.8;
+    this.fieldMaxSlope = 0.8;
   }
 
   // A height grid (cell metres, n x n points from x0,z0) that the shapes sit on. Inside a cell
@@ -156,7 +161,9 @@ export class Terrain {
     const a = this._envelope(x - hx * e, z - hz * e, hx, hz, r);
     const b = this._envelope(x + hx * e, z + hz * e, hx, hz, r);
     let slope = (b - a) / (2 * e);
-    if (slope > 0.8) slope = 0.8; else if (slope < -0.8) slope = -0.8;
+    let ms = this.maxSlope;
+    if (this.fieldMaxSlope > ms && this.field && h0 === this.fieldHeight(x, z)) ms = this.fieldMaxSlope; // nothing built here
+    if (slope > ms) slope = ms; else if (slope < -ms) slope = -ms;
     const inv = 1 / Math.sqrt(1 + slope * slope);
     out.hc = c; out.ns = -slope * inv; out.ny = inv;
   }
