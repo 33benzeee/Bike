@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Terrain, circleVsObstacle } from './world/terrain.js';
 import { buildCity, CURB } from './world/city.js';
+import { buildDesert } from './world/desert.js';
 import { Sky, TIMES } from './world/sky.js';
 import { Weather } from './world/weather.js';
 import { BikePhysics } from './physics.js';
@@ -54,7 +55,9 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(65, 1, 0.12, 3200);
     this.terrain = new Terrain();
-    this.city = buildCity(this.terrain, { quality: this.q.shadows });
+    // two maps: the city, or the desert (no traffic, cops, jobs or shops out there)
+    this.desert = st.map === 'desert';
+    this.city = this.desert ? buildDesert(this.terrain) : buildCity(this.terrain, { quality: this.q.shadows });
     this.scene.add(this.city.group);
     this.sky = new Sky(this.scene, renderer, this.q.shadows);
     this.sky.apply(st.time === 'cycle' ? 'day' : st.time, this.city);
@@ -67,8 +70,13 @@ class Game {
     this.rider = new Rider(); this.rider.terrain = this.terrain;
     this.effects = new Effects(this.scene);
     this.audio = new GameAudio(); this.audio.setVolume(st.volume, st.mute);
-    this.traffic = new Traffic(this.scene, this.terrain, this.city, this.q.traffic, this.q.shadows > 1);
+    this.traffic = new Traffic(this.scene, this.terrain, this.city, this.desert ? 0 : this.q.traffic, this.q.shadows > 1);
     this.cops = new Cops(this.scene, this.terrain);
+    if (this.desert) {
+      this.traffic.group.visible = false; this.cops.disable();
+      document.querySelector('#mapscreen .maplegend').innerHTML = '<span><i style="background:#ffb000"></i>MX park</span><span><i style="background:#ff6a2a"></i>Big Send</span><span><i style="background:#7fd17a"></i>Ridge trail · dirt jumps</span><span><i style="background:#ff4fd8"></i>Waypoint</span>';
+      document.querySelector('#loading p').textContent = 'Building the desert…';
+    }
     this.tricks = new Tricks();
     this.hud = new Hud(this.city);
     this.touch = new TouchControls(this.input);
@@ -96,6 +104,7 @@ class Game {
     this.setBike(this.save.data.bike, false);
     this._wearHelmet();
     this.jobs = new Jobs(this);
+    if (this.desert) this.jobs.disable();
     this.weather.onThunder = (v) => this.audio.thunder(v);
     this.weather.onChange = (kind) => {
       if (this.state !== 'play') return;
@@ -418,7 +427,8 @@ class Game {
     // a tap on a marker (shop, job, race, sprocket) puts the waypoint exactly on it
     const big = this.hud._big, sp = this.city.spots, ex = this.hud.extra;
     const reach = (22 * Math.max(1, document.getElementById('bigmap').width / 700)) / big.sc; // a bit more than the badge, in metres
-    const marks = [{ x: sp.dealer.x, z: sp.dealer.z, name: 'Dealership' }, { x: sp.customs.x, z: sp.customs.z, name: 'Customs' }, ...ex.pois];
+    const marks = [...ex.pois, ...(sp.pois || [])];
+    if (sp.dealer) marks.push({ x: sp.dealer.x, z: sp.dealer.z, name: 'Dealership' }, { x: sp.customs.x, z: sp.customs.z, name: 'Customs' });
     if (sp.skate) marks.push({ x: sp.skate.x, z: sp.skate.z, name: 'the skate park' });
     if (ex.target) marks.push({ x: ex.target.x, z: ex.target.z, name: 'your job target' });
     let hit = null, best = reach;
@@ -455,7 +465,7 @@ class Game {
     else if (key === 'camera') this.rig.set(val);
     else if (key === 'volume' || key === 'mute') this.audio.setVolume(st.volume, st.mute);
     else if (key === 'controls') this._updateControlsMode();
-    else if (key === 'quality') { try { localStorage.setItem('wheelie-works-save-v2', JSON.stringify(this.save.data)); } catch (e) { /* ignore */ } location.reload(); }
+    else if (key === 'quality' || key === 'map') { try { localStorage.setItem('wheelie-works-save-v2', JSON.stringify(this.save.data)); } catch (e) { /* ignore */ } location.reload(); }
   }
 
   // returns { ok, msg } for the cheat-code screen
@@ -632,7 +642,7 @@ class Game {
     if (s.look) this.rig.lookBy(s.look * dt * 420, 0);
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }
     if (input.take('time')) { const k = ['cycle', ...Object.keys(TIMES)]; const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(n === 'cycle' ? 'Day/night cycle' : TIMES[n].label); }
-    if (input.take('garage')) hud.hint('Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);
+    if (input.take('garage')) hud.hint(this.desert ? 'The <b>Dealership</b> and <b>Customs</b> are in the city — switch maps from the pause menu' : 'Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);
     if (input.take('map')) { this.openMap(); return; }
     if (input.take('burn')) {
       if (spec.drive.type !== 'electric') { this.burnout = false; hud.hint('Burnouts need a motor — try an e-bike or e-moto', 3); }
@@ -793,16 +803,20 @@ class Game {
     const sp = this.city.spots, t = this.time || 0;
     this.jobs.update(dt, pp, this.phys, !!this.foot);
     for (const k of ['dealer', 'customs']) {
-      const z = sp[k], d = Math.hypot(pp.x - z.x, pp.z - z.z);
+      const z = sp[k]; if (!z) continue;
+      const d = Math.hypot(pp.x - z.x, pp.z - z.z);
       z.marker.rotation.y = t * 0.8; z.marker.scale.setScalar(1 + Math.sin(t * 3) * 0.04);
       if (this.shopLock === k) { if (d > z.r + 2.5) this.shopLock = null; }
       else if (d < z.r && Math.abs(pp.speed) < 7 && !this.phys.airTime) this.openShop(k);
     }
     if (!this.cops.wanted) this._shopWarn = false;
     // the customs door rolls up when you get close
-    const c = sp.customs, near = Math.hypot(pp.x - c.doorX, pp.z - c.doorZ) < 17 || Math.hypot(pp.x - c.x, pp.z - c.z) < 12;
-    this.doorOpen = Math.max(0, Math.min(1, (this.doorOpen || 0) + (near ? dt * 1.8 : -dt * 1.2)));
-    c.door.position.y = c.doorY + this.doorOpen * (c.doorH - 0.25);
+    const c = sp.customs;
+    if (c) {
+      const near = Math.hypot(pp.x - c.doorX, pp.z - c.doorZ) < 17 || Math.hypot(pp.x - c.x, pp.z - c.z) < 12;
+      this.doorOpen = Math.max(0, Math.min(1, (this.doorOpen || 0) + (near ? dt * 1.8 : -dt * 1.2)));
+      c.door.position.y = c.doorY + this.doorOpen * (c.doorH - 0.25);
+    }
     // waypoints: distance readout, and tick them off on arrival
     if (this.waypoints.length) {
       const w = this.waypoints[0], d = Math.hypot(pp.x - w.x, pp.z - w.z), el = document.getElementById('wpd');

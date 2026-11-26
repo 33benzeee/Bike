@@ -38,7 +38,7 @@ const DEFAULTS = () => ({
   stats: {}, done: {},
   helmets: { owned: { white: true }, on: 'white' },
   jobs: { deliveries: 0, earned: 0, streakBest: 0 }, races: {}, season: { id: '', found: {}, done: false },
-  settings: { assist: 1, units: 'mph', time: 'cycle', weather: 'dynamic', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
+  settings: { map: 'city', assist: 1, units: 'mph', time: 'cycle', weather: 'dynamic', quality: 'auto', camera: 'chase', volume: 0.7, mute: false, controls: 'auto', hints: true },
 });
 
 export class Save {

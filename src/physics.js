@@ -73,7 +73,7 @@ export class BikePhysics {
     this.pullT = 0; this.pullDir = 0; this._leanPrev = 0;
     this.crashed = false; this.crashReason = ''; this.crashT = 0;
     this.surface = 0; this.yawRate = 0; this.airYaw = 0;
-    this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airStartPitch = 0;
+    this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airU = 0; this._cn = 0; this._cny = 1; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
     this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
@@ -282,10 +282,12 @@ export class BikePhysics {
           const h1 = ahead(1), hm = ahead(0.5);
           if (hc <= wy + 0.03 && h1 <= top && hm <= top) break;
           // a steep but smooth face (quarter pipe, bank) is there to be ridden up: only a
-          // near-vertical step, steeper than about 63 degrees, counts as a wall
-          if (hc <= wy + 0.03) {
-            const q1 = ahead(0.25), q3 = ahead(0.75);
-            if (Math.max(q1 - hc, hm - q1, q3 - hm, h1 - q3) < reach * 0.5) break;
+          // near-vertical step, steeper than about 63 degrees, counts as a wall. A tyre pushed
+          // into a smooth slope by a hard landing isn't in a wall either: then the ground just
+          // behind it has to be smooth too.
+          {
+            const q1 = ahead(0.25), q3 = ahead(0.75), steps = Math.max(q1 - hc, hm - q1, q3 - hm, h1 - q3);
+            if (hc <= wy + 0.03 ? steps < reach * 0.5 : Math.max(steps, hc - ahead(-0.25), ahead(-0.25) - ahead(-0.5)) < reach * 0.5) break;
           }
           const back = r * 0.2 * dir;
           wx -= hx * back; wz -= hz * back; this.x -= hx * back; this.z -= hz * back; hit = true;
@@ -299,6 +301,7 @@ export class BikePhysics {
     }
 
     // ---- rear wheel
+    this._cn = 0; this._cny = 1; // ground normal under the wheels (heading, up), for landings
     const rsR = -cx * ct + cy * st, ryR = -cx * st - cy * ct;
     this.rsR = rsR; this.ryR = ryR;
     {
@@ -307,6 +310,7 @@ export class BikePhysics {
       const pen = (wc.hc - (this.y + ryR)) * wc.ny;
       if (pen > 0) {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
+        this._cn = ns; this._cny = ny;
         const vs = u - this.pitchVel * ryR, vv = vy + this.pitchVel * rsR;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
         let Fn = springForce(su.kR, su.cR, su.tR, pen, vn, m);
@@ -354,6 +358,7 @@ export class BikePhysics {
       const pen = (wc.hc - (this.y + ryF)) * wc.ny;
       if (pen > 0) {
         const ns = wc.ns, ny = wc.ny, su = sp.susp;
+        this._cn = ns; this._cny = ny;
         const vs = u - this.pitchVel * ryF, vv = vy + this.pitchVel * rsF;
         const vn = vs * ns + vv * ny, vt = vs * ny - vv * ns;
         let Fn = springForce(su.kF, su.cF, su.tF, pen, vn, m);
@@ -556,7 +561,9 @@ export class BikePhysics {
     const rc = this.rearContact, fc = this.frontContact, any = rc || fc;
     if (any) {
       if (this.airTime > 0.22) {
-        const impact = -this._airVy;
+        // how hard you hit is the speed into the ground: landing on a down-slope (the back of
+        // a jump) is soft, flat ground hurts more, and casing into an up-slope hurts most
+        const impact = -(this._airU * this._cn + this._airVy * this._cny);
         const drop = this.airPeak - this.y;
         this.events.push({ type: 'land', airTime: this.airTime, impact, drop, flips: this.flipAccum });
         if (impact > sp.maxImpact) { this._crash('slam', impact); return; }
@@ -567,7 +574,7 @@ export class BikePhysics {
     } else {
       if (this.airTime === 0) { this.airPeak = this.y; }
       this.airTime += dt; this.groundT += dt;
-      this._airVy = this.vy;
+      this._airVy = this.vy; this._airU = this.vx * Math.sin(this.yaw) + this.vz * Math.cos(this.yaw);
       if (this.y > this.airPeak) this.airPeak = this.y;
       // count full rotations
       if (this.pitch > Math.PI) { this.pitch -= 2 * Math.PI; this.flipAccum += 1; this.events.push({ type: 'flip', dir: 1 }); }

@@ -70,8 +70,8 @@ export class Sky {
   update(x, y, z) {
     this.dome.position.set(x, 0, z);
     const sx = Math.round(x / 2) * 2, sz = Math.round(z / 2) * 2;
-    this.sun.target.position.set(sx, 0, sz);
-    this.sun.position.set(sx + this.dir.x * 200, this.dir.y * 200, sz + this.dir.z * 200);
+    this.sun.target.position.set(sx, y, sz);
+    this.sun.position.set(sx + this.dir.x * 200, y + this.dir.y * 200, sz + this.dir.z * 200);
     this.sun.target.updateMatrixWorld();
   }
 }

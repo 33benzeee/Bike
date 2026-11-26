@@ -64,10 +64,10 @@ export class Traffic {
         paint.setColorAt(car.idx, _c.set(city.carColors[Math.floor(Math.random() * city.carColors.length)]));
         this.cars.push(car);
       }
-      paint.instanceColor.needsUpdate = true;
+      if (paint.instanceColor) paint.instanceColor.needsUpdate = true;
     }
 
-    this._buildLights();
+    if (city.desert) this.heads = []; else this._buildLights(); // no traffic lights out in the desert
     for (const c of this.cars) this._spawn(c, 0, 0, 30, 240);
   }
 
@@ -113,7 +113,7 @@ export class Traffic {
       this.lamps.setColorAt(k * 3 + 1, _c.set(s === 1 ? ON[1] : OFF[1]));
       this.lamps.setColorAt(k * 3 + 2, _c.set(s === 0 ? ON[0] : OFF[0]));
     });
-    if (dirty) this.lamps.instanceColor.needsUpdate = true;
+    if (dirty && this.lamps) this.lamps.instanceColor.needsUpdate = true;
   }
 
   // ---- lane following --------------------------------------------------

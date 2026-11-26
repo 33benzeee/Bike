@@ -22,14 +22,17 @@ export class Hud {
   }
 
   _prerender(city) {
-    const size = 512, world = (EDGE + WALK) * 2, k = size / world;
+    const size = 512, world = city.map ? city.map.world : (EDGE + WALK) * 2, k = size / world;
     const cv = document.createElement('canvas'); cv.width = cv.height = size;
     const c = cv.getContext('2d');
-    c.fillStyle = '#2c5f7a'; c.fillRect(0, 0, size, size);
-    c.fillStyle = '#2b2e35'; c.fillRect(0, 0, size, size);
-    for (const b of city.blocks) {
-      c.fillStyle = MAP_COL[b.type] || '#777';
-      c.fillRect((b.x0 + world / 2) * k, (b.z0 + world / 2) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k);
+    this.open = !!city.map; // no street grid: routes are straight lines
+    if (city.map) city.map.draw(c, size);
+    else {
+      c.fillStyle = '#2b2e35'; c.fillRect(0, 0, size, size);
+      for (const b of city.blocks) {
+        c.fillStyle = MAP_COL[b.type] || '#777';
+        c.fillRect((b.x0 + world / 2) * k, (b.z0 + world / 2) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k);
+      }
     }
     this.mapImg = cv; this.mapK = k; this.mapWorld = world; this.spots = city.spots;
     this.extra = { pois: [], target: null }; // job markers and the current job target
@@ -125,6 +128,7 @@ export class Hud {
   // road-following route from the rider to a waypoint: out to the nearest junction,
   // along the grid, then in to the point
   _route(px, pz, w) {
+    if (this.open) return [[px, pz], [w.x, w.z]];
     const node = (v) => Math.max(0, Math.min(N, Math.round(v / PITCH + N / 2)));
     const pi = node(px), pj = node(pz), wi = node(w.x), wj = node(w.z);
     return [[px, pz], [roadC(pi), roadC(pj)], [roadC(wi), roadC(pj)], [roadC(wi), roadC(wj)], [w.x, w.z]];
@@ -162,6 +166,7 @@ export class Hud {
     if (this.spots.dealer) badge(this.spots.dealer.x, this.spots.dealer.z, '#ffd21f', '$');
     if (this.spots.customs) badge(this.spots.customs.x, this.spots.customs.z, '#34d17a', 'C');
     if (this.spots.skate && !clampR) badge(this.spots.skate.x, this.spots.skate.z, '#e8e4d8', 'P');
+    if (this.spots.pois) for (const q of this.spots.pois) badge(q.x, q.z, q.color, q.letter);
     wps.forEach((w, i) => badge(w.x, w.z, '#ff4fd8', String(i + 1)));
     if (ex.target) badge(ex.target.x, ex.target.z, ex.target.color, ex.target.letter);
     const blink = Math.floor(this._blink * 5) % 2 === 0;
@@ -183,7 +188,7 @@ export class Hud {
     c.save();
     c.clearRect(0, 0, S, S);
     c.beginPath(); c.arc(S / 2, S / 2, S / 2, 0, 6.2832); c.clip();
-    c.fillStyle = '#244d63'; c.fillRect(0, 0, S, S);
+    c.fillStyle = this.open ? '#a8825a' : '#244d63'; c.fillRect(0, 0, S, S);
     const sc = S / (2 * R);
     c.drawImage(this.mapImg, (px - R + half) * k, (pz - R + half) * k, 2 * R * k, 2 * R * k, 0, 0, S, S);
     this._mapItems(c, (x, z) => [S / 2 + (x - px) * sc, S / 2 + (z - pz) * sc], px, pz, yaw, cops, wanted, wps, S / 2 - 12);
@@ -197,7 +202,7 @@ export class Hud {
     const c = canvas.getContext('2d'), size = Math.min(W, H) * 0.96, half = this.mapWorld / 2, sc = size / this.mapWorld;
     const ox = (W - size) / 2, oy = (H - size) / 2;
     this._big = { ox, oy, sc, half, dpr };
-    c.fillStyle = '#12303f'; c.fillRect(0, 0, W, H);
+    c.fillStyle = this.open ? '#2e2218' : '#12303f'; c.fillRect(0, 0, W, H);
     c.drawImage(this.mapImg, ox, oy, size, size);
     const T = (x, z) => [ox + (x + half) * sc, oy + (z + half) * sc];
     // _mapItems scales icons from the canvas width

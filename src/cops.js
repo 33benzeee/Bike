@@ -222,6 +222,7 @@ export class Cops {
   // ---- main update ----------------------------------------------------------
   // p: { x, y, z, vx, vz, speed, crashed, offence (0..1), emoto, hitCop }
   update(dt, p, traffic) {
+    if (this.off) { this.dyn.length = 0; this.suspicion = 0; return; }
     this.time += dt;
     const T = this.terrain;
     this.dyn.length = 0;
@@ -454,8 +455,12 @@ export class Cops {
     if (escaped) { if (this.onEscape) this.onEscape(heat); } else if (this.onBusted) this.onBusted(heat, !!tackled);
   }
 
+  // No police at all (the desert map)
+  disable() { this.off = true; for (const u of [...this.units]) this._remove(u); this.units.length = 0; }
+
   // After a bust / respawn: clear the area.
   reset(px, pz) {
+    if (this.off) return;
     for (let k = this.units.length - 1; k >= 0; k--) {
       const u = this.units[k];
       if (!u) continue;

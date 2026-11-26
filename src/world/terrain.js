@@ -24,6 +24,26 @@ export class Terrain {
     this.surface = 0;
     this._stamp = 0;
     this.bounds = 400;
+    this.field = null; // optional rolling ground under everything (the desert): see setField
+  }
+
+  // A height grid (cell metres, n x n points from x0,z0) that the shapes sit on. Inside a cell
+  // the ground is two flat triangles split along the (0,0)-(1,1) diagonal, the same way the
+  // ground mesh is drawn. surf: one SURF value per cell. Outside the grid the ground is flat
+  // at the edge height.
+  setField(x0, z0, cell, n, h, surf, baseSurf) {
+    this.field = { x0, z0, cell, n, h, surf, baseSurf };
+  }
+
+  fieldHeight(x, z) {
+    const f = this.field, n = f.n;
+    let gx = (x - f.x0) / f.cell, gz = (z - f.z0) / f.cell;
+    if (gx < 0) gx = 0; else if (gx > n - 1.001) gx = n - 1.001;
+    if (gz < 0) gz = 0; else if (gz > n - 1.001) gz = n - 1.001;
+    const i = gx | 0, j = gz | 0, fx = gx - i, fz = gz - j, k = j * n + i, H = f.h;
+    const h00 = H[k], h11 = H[k + n + 1];
+    this.surface = f.surf[(j * (n - 1)) + i];
+    return fx >= fz ? h00 + fx * (H[k + 1] - h00) + fz * (h11 - H[k + 1]) : h00 + fz * (H[k + n] - h00) + fx * (h11 - H[k + n]);
   }
 
   _insert(map, item, minX, maxX, minZ, maxZ) {
@@ -73,6 +93,7 @@ export class Terrain {
   height(x, z) {
     const c = this.hCells.get(key(Math.floor(x / CELL), Math.floor(z / CELL)));
     let h = 0, surf = 0;
+    if (this.field) { h = this.fieldHeight(x, z); surf = this.surface; }
     if (c) {
       for (let i = 0; i < c.length; i++) {
         const s = c[i];

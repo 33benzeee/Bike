@@ -70,6 +70,12 @@ wall? Hold brake to paddle backwards.
   jump park, a skate plaza, a construction site with container gaps, a civic plaza with
   stair sets, a concrete skate park (half-pipe, roll-in, funbox, quarter wall, spine) and
   the Wheelie Works shop. Traffic obeys lights; cars brake for you.
+- **Desert** — a second map (switch with *MAP* on the title or pause menu; the game reloads).
+  Dunes and hills ringed by mountains, a highway over them, a motocross park with four lanes
+  (tabletops, doubles up to a 26 m triple, whoops and a step-up), the *Big Send* (a 26 m gap
+  for motor bikes), and the *Ridge Trail*: a fire road up a long hill and a singletrack back
+  down with rollers, tables, a wooden drop and doubles, ending in a dirt jump line. No
+  traffic, cops, jobs or shops out there. Landings are judged against the slope you land on.
 - **Cops** — patrols notice wheelies, speeding and e-motos. Five heat levels escalate from
   one cruiser to backup, roadblocks, bike cops that follow you through alleys, and a
   helicopter. Break line of sight and stay hidden to escape for a payout. Dawdle or walk
@@ -111,7 +117,7 @@ wall? Hold brake to paddle backwards.
 | `src/bikes.js` | Bike specs, prices, mods and the customisation catalogue — tune the game here |
 | `src/bikeModel.js`, `src/rider.js` | Procedural bike meshes; IK-posed rider and ragdoll |
 | `src/bikeGlb.js`, `assets/models/` | Detailed glTF bike models, cut into the same moving parts |
-| `src/world/` | City generator, terrain/colliders, sky and lighting, day/night cycle and weather |
+| `src/world/` | City and desert generators, terrain/colliders, sky and lighting, day/night cycle and weather |
 | `src/traffic.js`, `src/cops.js` | Traffic and police AI |
 | `src/tricks.js`, `src/progress.js` | Scoring, save data, challenges |
 | `src/helmets.js` | Helmet catalogue, case odds and the helmet model |

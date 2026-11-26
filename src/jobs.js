@@ -100,6 +100,9 @@ export class Jobs {
     this._pois();
   }
 
+  // no jobs, races or collectibles on this map (the desert): they all live in the city
+  disable() { this.off = true; this.root.visible = false; this.stations.length = 0; this.g.hud.extra.pois.length = 0; }
+
   _marker(x, z, col, r, text, beacon) {
     const g = new THREE.Group(); g.position.set(x, this.T.height(x, z) + 0.04, z);
     const ring = new THREE.Mesh(new THREE.RingGeometry(r * 0.8, r, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false }));
@@ -388,6 +391,7 @@ export class Jobs {
 
   // ---- per frame -------------------------------------------------------------------
   update(dt, pp, p, onFoot) {
+    if (this.off) return;
     const g = this.g;
     this.t += dt;
     const t = this.t, sp = Math.abs(pp.speed || 0);

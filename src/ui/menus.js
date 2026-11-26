@@ -70,6 +70,7 @@ export class Menus {
     const g = this.game, au = g.audio, s = g.save;
     switch (a) {
       case 'ride': au.ui(); g.startRide(); break;
+      case 'map': au.ui(); g.applySetting('map', g.desert ? 'city' : 'desert'); break;
       case 'resume': au.ui(); g.resume(); break;
       case 'go': au.ui(); this.show(v); break;
       case 'back': au.ui(); if (this.current === 'dealer' || this.current === 'customs') g.closeShop(); else this.show(this.parent); break;
@@ -162,6 +163,7 @@ export class Menus {
       <div class="menu">
         <button class="btn primary" data-a="${pause ? 'resume' : 'ride'}">${pause ? 'RESUME' : 'RIDE'}</button>
         ${pause && g.jobs.mode ? `<button class="btn" data-a="abandon">${g.jobs.mode === 'delivery' ? 'ABANDON DELIVERY' : g.jobs.mode === 'wheelie' ? 'QUIT WHEELIE RUN' : 'QUIT RACE'}</button>` : ''}
+        <button class="btn" data-a="map">MAP <small>${g.desert ? 'DESERT · tap for the city' : 'CITY · tap for the desert'}</small></button>
         <button class="btn" data-a="go" data-v="events">SEASON &amp; RACES <small>${g.jobs.seasonFound()}/${g.jobs.tokens.length}</small></button>
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
