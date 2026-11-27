@@ -61,10 +61,7 @@ export class Tricks {
     let busy = false; const parts = [];
     this.zone = 0;
 
-    // a landing you crash on scores nothing (the crash has already thrown the combo away)
-    const wrecked = phys.events.some((e) => e.type === 'crash');
     for (const e of phys.events) {
-      if (wrecked && (e.type === 'land' || e.type === 'flip')) { this.hopped = false; for (const k in this.airVar) this.airVar[k] = 0; continue; }
       if (e.type === 'hop') this.hopped = true;
       else if (e.type === 'flip') { this._add(e.dir > 0 ? 'Backflip' : 'Frontflip', 700); if (this.onStat) this.onStat('flip', 1); }
       else if (e.type === 'land') {
@@ -73,7 +70,6 @@ export class Tricks {
           this._add(e.drop > 2.2 ? 'Huge Drop' : e.airTime > 1.1 ? 'Big Air' : this.hopped ? 'Bunny Hop' : 'Air', pts);
           if (this.onStat) this.onStat('air', e.airTime);
         }
-        if (e.whips > 0) { const n = Math.min(4, e.whips); this._add(['Whip', 'Double Whip', 'Triple Whip', 'Quad Whip'][n - 1], 200 * n + 50 * (n - 1)); if (this.onStat) this.onStat('whip', n); }
         for (const v of VARIANTS) { if (this.airVar[v.key] > 0.3) this._add(v.air, v.airPts * Math.min(2, this.airVar[v.key] / 0.5)); this.airVar[v.key] = 0; }
         this.hopped = false;
       }
@@ -83,7 +79,6 @@ export class Tricks {
     if (air) {
       busy = phys.airTime > 0.45;
       for (const v of VARIANTS) if (keys[v.key] > 0.75) { this.airVar[v.key] += dt; parts.push(v.air); }
-      if (Math.abs(phys.whip || 0) > 0.45) parts.push('Whip');
       if (busy && !parts.length) parts.push('Air');
     }
 

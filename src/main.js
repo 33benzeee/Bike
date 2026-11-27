@@ -716,7 +716,7 @@ class Game {
         this.audio.crash(); this.rig.kick(1); this.tricks.crash(); this.jobs.crashed();
         if (e.cop) this.hitCop = true; else if (e.ref) this.traffic.bumped(e.ref);
         this.effects.sparks(p.x, groundY + 0.3, p.z, 16, p.vx, p.vz); this.effects.dust(p.x, groundY, p.z, 8, [0.6, 0.6, 0.6]);
-        const msg = { loopout: 'LOOPED OUT', endo: 'OVER THE BARS', hit: 'WRECKED', slam: 'SLAMMED', sideways: 'HIGH-SIDED', slide: 'LOW-SIDED', whip: 'LANDED SIDEWAYS' }[e.reason] || 'CRASHED';
+        const msg = { loopout: 'LOOPED OUT', endo: 'OVER THE BARS', hit: 'WRECKED', slam: 'SLAMMED', sideways: 'HIGH-SIDED', slide: 'LOW-SIDED' }[e.reason] || 'CRASHED';
         hud.banner(msg, '', 'yel', 2);
       }
     }
@@ -925,13 +925,12 @@ class Game {
       return;
     }
     const r = sp.rR;
-    // a whip lays the bike over and swings it sideways in the air
-    const lean = p.lean + this.rider.w.stop * 0.09 + p.whip * 0.85, yaw = p.yaw + p.whip * 0.5;
+    const lean = p.lean + this.rider.w.stop * 0.09;
     const sl = Math.sin(lean), cl = Math.cos(lean);
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);
     g.position.set(p.x + hx * p.rsR + hz * r * sl, y, p.z + hz * p.rsR - hx * r * sl);
-    g.rotation.set(-p.pitch, yaw, -lean, 'YXZ');
+    g.rotation.set(-p.pitch, p.yaw, -lean, 'YXZ');
     g.updateMatrixWorld(true);
     poseBike(model, p, dt);
     const rx = p.x + hx * p.rsR, rz = p.z + hz * p.rsR;

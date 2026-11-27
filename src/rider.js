@@ -277,8 +277,7 @@ export class Rider {
     hip.z += standG * 0.08 - superman * 0.25;
     hip.x = phys.steer * 0.02 + w.stop * 0.04;
     this.torso.position.copy(hip);
-    // in a whip the rider stays more upright than the bike, which is laid over under them
-    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08 + (phys.whip || 0) * 0.4, 'YXZ');
+    this.torso.rotation.set(this.torsoPitch, phys.steer * 0.12 * (1 - w.no), -phys.steer * 0.06 + w.one * 0.08, 'YXZ');
     this.head.rotation.set(clamp(0.12 + phys.pitch - this.torsoPitch, -0.9, 0.8), phys.steer * 0.3, 0);
     this.torso.updateMatrix();
 
