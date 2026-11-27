@@ -63,7 +63,8 @@ wall? Hold brake to paddle backwards.
 - **Ten bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Santa Cruz V10 (downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
-- **Tricks and combos** — wheelies, manuals, stoppies, hops, air, flips, swerves, skids,
+- **Tricks and combos** — wheelies, manuals, stoppies, hops, air, flips, whips (steer in the
+  air; straighten up before you land), swerves, skids,
   12 o'clock scrapes, traffic near-misses, plus four hold-to-pose variations that also work
   in the air (Superman, Can-Can…). Chain them before the timer runs out to bank cash.
 - **City** — an 8×8-block island: downtown towers with alleys, a park with hills, a dirt

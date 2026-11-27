@@ -25,6 +25,9 @@ function springForce(k, c, travel, pen, vn, m) {
 // how hard a held wheelie can still accelerate, as a fraction of g (Sim gets 60% of it)
 const WHEELIE_ACC = 0.24;
 const SPEEDMAX_G = [0, 1.5, 4.5]; // extra forward push with each speed code, in g
+// whip: steering in the air throws the bike out sideways (radians of yaw+lay-over at full lock).
+// It starts once you're properly airborne; straighten up before landing or you go down.
+const WHIP = { max: 1.0, maxPedal: 0.85, start: 0.22, wn: 11, crash: 0.75 };
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -77,6 +80,7 @@ export class BikePhysics {
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
     this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
     this.bikeRoll = 0; this.bikeYawVel = 0;
+    this.whip = 0; this.whipVel = 0; this.whipPeak = 0; this.whips = 0; this._whipSide = 0;
     this.events.length = 0;
   }
 
@@ -143,6 +147,18 @@ export class BikePhysics {
     const n = Math.max(1, Math.round(dt / SUB));
     const h = dt / n;
     for (let i = 0; i < n; i++) this._sub(h, inp);
+
+    // ---- whip: hold a direction in the air and the bike kicks out that way, let go and it comes
+    // back. It's how the bike sits, not where it's going: the line through the air doesn't change.
+    if (!this.rearContact && !this.frontContact && this.airTime > WHIP.start) {
+      const max = sp.drive.type === 'pedal' ? WHIP.maxPedal : WHIP.max, wn = WHIP.wn;
+      this.whipVel += (wn * wn * (this.steer * max - this.whip) - 2 * wn * this.whipVel) * Math.min(dt, 0.05);
+      this.whip += this.whipVel * Math.min(dt, 0.05);
+      this.whipPeak = Math.max(this.whipPeak, Math.abs(this.whip));
+      // each time it's thrown well out to a side counts as a whip (left-right-left is three)
+      const side = this.whip > max * 0.6 ? 1 : this.whip < -max * 0.6 ? -1 : 0;
+      if (side && side !== this._whipSide) { this.whips++; this._whipSide = side; }
+    }
 
     this._collide(dyn);
     if (!this.crashed) this._checks(dt);
@@ -519,8 +535,8 @@ export class BikePhysics {
       if (this.burning) yawRate += this.steer * 2.4 * this.throttle; // swing the back end round: donuts
       this.airYaw = 0;
     } else {
-      // airborne: a little whip, lean follows
-      this.airYaw += (this.steer * 0.7 - this.airYaw) * Math.min(1, 6 * h);
+      // airborne: the bars mostly whip the bike (see step), with only a little turn of the line
+      this.airYaw += (this.steer * 0.45 - this.airYaw) * Math.min(1, 6 * h);
       yawRate = this.airYaw;
       const la = 36 * (this.steer * 0.35 - this.lean) - 9 * this.leanVel;
       this.leanVel += la * h;
@@ -588,11 +604,16 @@ export class BikePhysics {
         // a jump) is soft, flat ground hurts more, and casing into an up-slope hurts most
         const impact = -(this._airU * this._cn + this._airVy * this._cny);
         const drop = this.airPeak - this.y;
-        this.events.push({ type: 'land', airTime: this.airTime, impact, drop, flips: this.flipAccum });
+        this.events.push({ type: 'land', airTime: this.airTime, impact, drop, flips: this.flipAccum, whips: this.whips, whip: Math.abs(this.whip) });
         if (impact > sp.maxImpact) { this._crash('slam', impact); return; }
+        // still thrown out sideways when the wheels touch: the bike tucks under and you go down
+        // (not off a hop or a kerb: that's too short to have properly thrown it)
+        if (this.airTime > 0.6 && Math.abs(this.whip) > WHIP.crash) { this._crash('whip', Math.abs(this.speed)); return; }
         if (Math.abs(this.lat) > 5 && Math.abs(this.lat) > 0.7 * Math.abs(this.speed)) { this._crash('sideways', Math.abs(this.lat)); return; }
       }
       this.airTime = 0; this.groundT = 0; this.flipAccum = 0;
+      // a small whip left over snaps straight as the tyres bite
+      this.whip *= 1 - Math.min(1, 14 * dt); this.whipVel = 0; this.whipPeak = 0; this.whips = 0; this._whipSide = 0;
       this.airPeak = this.y;
     } else {
       if (this.airTime === 0) { this.airPeak = this.y; }

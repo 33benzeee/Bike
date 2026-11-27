@@ -445,7 +445,7 @@ export class Menus {
     const keys = `<div class="keys">
       <span><kbd>W</kbd> / <kbd>↑</kbd></span><span>Throttle (pedal)</span>
       <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Brake — in a wheelie this is your rear brake: tap it to bring the front down</span>
-      <span><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></span><span>Steer</span>
+      <span><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></span><span>Steer. In the air, hold a direction to whip the bike sideways, then let go to straighten it before you land</span>
       <span><kbd>Shift</kbd> / <kbd>Q</kbd></span><span>Lean back — pull up into a wheelie</span>
       <span><kbd>X</kbd></span><span>Front brake / stoppie — hold it on the ground to lift the tail. In a wheelie it only stops the front wheel, it doesn't bring the bike down. Normal braking with <kbd>S</kbd> never tips you over the bars.</span>
       <span><kbd>E</kbd></span><span>Lean forward — keeps a powerful bike's front down, rotates you forwards in the air</span>
