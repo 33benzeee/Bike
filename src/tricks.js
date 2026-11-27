@@ -61,7 +61,10 @@ export class Tricks {
     let busy = false; const parts = [];
     this.zone = 0;
 
+    // a landing you crash on scores nothing (the crash has already thrown the combo away)
+    const wrecked = phys.events.some((e) => e.type === 'crash');
     for (const e of phys.events) {
+      if (wrecked && (e.type === 'land' || e.type === 'flip')) { this.hopped = false; for (const k in this.airVar) this.airVar[k] = 0; continue; }
       if (e.type === 'hop') this.hopped = true;
       else if (e.type === 'flip') { this._add(e.dir > 0 ? 'Backflip' : 'Frontflip', 700); if (this.onStat) this.onStat('flip', 1); }
       else if (e.type === 'land') {
