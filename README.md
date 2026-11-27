@@ -46,6 +46,7 @@ they go away. Everything can be overridden in **Settings**.
 | Camera (chase, far, first person, handlebar) | `C` | CAM | RB |
 | Reset to the road (riding) / bring the bike to you (on foot) | `R` | RESET / CALL BIKE | Back |
 | Get on the bike when standing next to it | `F` | GET ON | — |
+| Garage: spawn any bike you own where you are | `G` | II → GARAGE | Start → GARAGE |
 | Full map and waypoints | `N` | tap the minimap | — |
 | Pause, mute, time of day | `P`, `M`, `T` | II | Start |
 
@@ -96,6 +97,8 @@ wall? Hold brake to paddle backwards.
 - **Seasons** — each season hides a new set of collectibles around the city, off the map,
   with its own reward. Season 1 hides 20 Neon Sprockets; find them all for the Aurora
   helmet. Add a season in `src/seasons.js`.
+- **Garage** — the title and pause menus (or `G` while riding) list every bike you own;
+  pick one and it appears under you, right where you are.
 - **Shops you ride to** — next to the spawn are the *Dealership* (buy and switch bikes)
   and the *Customs* garage, whose door rolls up as you arrive. Ride into the glowing ring.
 - **Map** — tap the minimap (or press `N`) for the full map; tap it to drop waypoints,

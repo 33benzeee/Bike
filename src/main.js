@@ -6,7 +6,7 @@ import { buildDesert } from './world/desert.js';
 import { Sky, TIMES } from './world/sky.js';
 import { Weather } from './world/weather.js';
 import { BikePhysics } from './physics.js';
-import { BIKE_BY_ID, MOD_BY_ID, PAINT_PARTS, PRICES, effectiveSpec, lookOf, modPrice, modState, setModEquipped, newEntry } from './bikes.js';
+import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, modFits, PAINT_PARTS, PRICES, effectiveSpec, lookOf, modPrice, modState, setModEquipped, newEntry } from './bikes.js';
 import { buildBike, poseBike } from './bikeModel.js';
 import { Rider } from './rider.js';
 import { Input } from './input.js';
@@ -232,6 +232,30 @@ class Game {
     this.save.data.bike = id; this.save.persist();
     this.setBike(id, this.prevState !== 'title');
     this.model.group.visible = false;
+  }
+
+  // the Garage: put any bike you own under you, right where you are
+  spawnBike(id) {
+    if (!this.save.owns(id) || this.cut) return false;
+    this.save.data.bike = id; this.save.persist();
+    this.setBike(id, true);
+    this.respawnGrace = 1.5;
+    return true;
+  }
+  openGarage() {
+    if (this.state !== 'play' || this.cut) return;
+    this.pause(); this.menus.show('garage');
+  }
+
+  // every mod that fits, installed and fitted (race tyres over sport); returns how many were new
+  maxUpgrade(id) {
+    const e = this.save.entry(id), b = BIKE_BY_ID[id];
+    if (!e || !b) return 0;
+    let added = 0;
+    for (const m of MODS) if (modFits(b, m) && !e.mods[m.id]) { e.mods[m.id] = 1; added++; }
+    for (const m of MODS) if (modFits(b, m)) setModEquipped(e, m.id, true); // later tyres replace earlier ones
+    this._respec(id);
+    return added;
   }
 
   // ---- performance mods -----------------------------------------------------
@@ -483,6 +507,21 @@ class Game {
       if (!this.phys.unlimited) return { ok: true, msg: 'Speed limit back on.' };
       return { ok: true, msg: `${level === 2 ? 'Even more speed: three times the push of BBV33SPEEDMAX' : 'No speed limit: every bike keeps accelerating as long as you hold the throttle'}. Enter ${code} again to turn it off.` };
     }
+    if (code === 'BBV33ALLBIKES') {
+      const add = BIKES.filter((b) => !s.owns(b.id));
+      for (const b of add) s.data.owned[b.id] = newEntry();
+      s.persist();
+      return add.length ? { ok: true, msg: `All ${BIKES.length} bikes are yours (${add.length} new). Open the <b>GARAGE</b> to spawn one.` } : { ok: true, msg: 'You already own every bike.' };
+    }
+    if (code === 'UPGRADEMAX33') {
+      const b = BIKE_BY_ID[s.data.bike], n = this.maxUpgrade(b.id);
+      return { ok: true, msg: n ? `${b.name} fully upgraded: every mod installed and fitted.` : `Your ${b.name} was already fully upgraded. Everything is fitted now.` };
+    }
+    if (code === 'UPGRADEALLMAX33') {
+      const ids = Object.keys(s.data.owned).filter((id) => BIKE_BY_ID[id]);
+      for (const id of ids) this.maxUpgrade(id);
+      return { ok: true, msg: `All ${ids.length} of your bikes are fully upgraded.` };
+    }
     if (code === 'NOCOPS') {
       this.noCops = !this.noCops;
       if (this.noCops) this.cops.reset(this.phys.x, this.phys.z);
@@ -642,7 +681,7 @@ class Game {
     if (s.look) this.rig.lookBy(s.look * dt * 420, 0);
     if (input.take('mute')) { this.applySetting('mute', !st.mute); hud.camName(st.mute ? 'Sound off' : 'Sound on'); }
     if (input.take('time')) { const k = ['cycle', ...Object.keys(TIMES)]; const n = k[(k.indexOf(st.time) + 1) % k.length]; this.applySetting('time', n); hud.camName(n === 'cycle' ? 'Day/night cycle' : TIMES[n].label); }
-    if (input.take('garage')) hud.hint(this.desert ? 'The <b>Dealership</b> and <b>Customs</b> are in the city — switch maps from the pause menu' : 'Ride to the <b>Dealership</b> or the <b>Customs</b> garage by the spawn — they are on the map', 4);
+    if (input.take('garage')) { this.openGarage(); return; }
     if (input.take('map')) { this.openMap(); return; }
     if (input.take('burn')) {
       if (spec.drive.type !== 'electric') { this.burnout = false; hud.hint('Burnouts need a motor — try an e-bike or e-moto', 3); }

@@ -1,4 +1,4 @@
-// Title, pause, garage, settings, challenges and controls screens.
+// Title, pause, garage (bikes you own), dealership, customs, settings, challenges and controls screens.
 import { BIKES, BIKE_BY_ID, MODS, MOD_BY_ID, SUSP_TUNES, PAINT_PARTS, WRAPS, LED_MODES, FLAGS, PRICES, effectiveSpec, statBars, perfStats, modFits, modName, modInfo, modPrice, modState, lookOf, newEntry } from '../bikes.js';
 import { CHALLENGES } from '../progress.js';
 import { HELMETS, RARITY, CASE_PRICE, DUPLICATE_REFUND, HELMET_MODEL_CREDIT } from '../helmets.js';
@@ -79,6 +79,12 @@ export class Menus {
       case 'sel': au.ui(); this.sel = v; if (!s.owns(v)) this.gtab = 'bike'; this.refresh(); break;
       case 'buy': if (g.buyBike(v)) { au.bank(true); this.sel = v; } else au.deny(); this.refresh(); break;
       case 'use': au.ui(); g.selectBike(v); this.refresh(); break;
+      case 'spawn': {
+        if (!g.spawnBike(v)) { au.deny(); break; }
+        au.bank(false);
+        if (this.parent === 'pause') { g.resume(); g.hud.toast('GARAGE', BIKE_BY_ID[v].name, 'Spawned right here'); } else this.refresh();
+        break;
+      }
       case 'gtab': au.ui(); this.gtab = v; this.refresh(); break;
       case 'helm': au.ui(); this.helmSel = v; g.equipHelmet(v); this.refresh(); break;
       case 'case': {
@@ -164,6 +170,7 @@ export class Menus {
         <button class="btn primary" data-a="${pause ? 'resume' : 'ride'}">${pause ? 'RESUME' : 'RIDE'}</button>
         ${pause && g.jobs.mode ? `<button class="btn" data-a="abandon">${g.jobs.mode === 'delivery' ? 'ABANDON DELIVERY' : g.jobs.mode === 'wheelie' ? 'QUIT WHEELIE RUN' : 'QUIT RACE'}</button>` : ''}
         <button class="btn" data-a="map">MAP <small>${g.desert ? 'DESERT · tap for the city' : 'CITY · tap for the desert'}</small></button>
+        <button class="btn" data-a="go" data-v="garage">GARAGE <small>${Object.keys(g.save.data.owned).filter((id) => BIKE_BY_ID[id]).length}/${BIKES.length} BIKES</small></button>
         <button class="btn" data-a="go" data-v="events">SEASON &amp; RACES <small>${g.jobs.seasonFound()}/${g.jobs.tokens.length}</small></button>
         <button class="btn" data-a="go" data-v="challenges">CHALLENGES <small>${Object.keys(g.save.data.done).length}/${CHALLENGES.length}</small></button>
         <button class="btn" data-a="go" data-v="controls">HOW TO RIDE</button>
@@ -372,6 +379,27 @@ export class Menus {
       </div></div>`;
   }
 
+  // ---- garage: every bike you own, spawned where you stand
+  _garage() {
+    const g = this.game, s = g.save, riding = this.parent === 'pause', mph = s.data.settings.units === 'mph';
+    const own = BIKES.filter((b) => s.owns(b.id));
+    const cards = own.map((b) => {
+      const e = s.entry(b.id), spec = effectiveSpec(b, e), fits = MODS.filter((m) => modFits(b, m));
+      const has = fits.filter((m) => e.mods[m.id]).length, here = s.data.bike === b.id;
+      const top = Math.round(spec.drive.topSpeed * (mph ? 2.237 : 3.6));
+      const btn = here
+        ? `<button class="mbtn off" ${riding ? `data-a="spawn" data-v="${b.id}"` : 'disabled'}>${riding ? 'RIDING · RESPAWN IT HERE' : 'YOUR RIDE'}</button>`
+        : `<button class="mbtn" data-a="spawn" data-v="${b.id}">${riding ? 'SPAWN HERE' : 'RIDE THIS ONE'}</button>`;
+      return `<div class="mod ${here ? 'on' : ''}"><div class="mh"><span class="mn">${b.name}</span><span class="tag2 ${here ? 'on' : ''}">${here ? 'RIDING' : b.brand.toUpperCase()}</span></div>
+        <div class="mi">Top speed ${top} ${mph ? 'mph' : 'km/h'} · ${spec.mass.toFixed(1)} kg · ${has === fits.length ? 'fully upgraded' : `mods ${has} of ${fits.length}`}</div>${btn}</div>`;
+    }).join('');
+    return `<div class="screen center"><div class="col panel">
+      <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">GARAGE<small>${own.length} of ${BIKES.length} bikes</small></div><div class="cash">${money(s.cash)}</div></div>
+      <div class="scroll gar">${cards}
+        <div class="tip">${riding ? 'Pick a bike and it appears under you, right where you are.' : 'Pick the bike you start on.'} Buy more at the <b>Dealership</b>; mods and paint are at <b>Customs</b>.${g.input.mode === 'keyboard' ? ' Press <kbd>G</kbd> while riding to open the garage.' : ''}</div>
+      </div></div></div>`;
+  }
+
   _settings() {
     const st = this.game.save.data.settings;
     const seg = (key, opts) => `<div class="seg">${opts.map(([v, l]) => `<button class="${String(st[key]) === String(v) ? 'on' : ''}" data-a="set" data-v="${key}:${v}">${l}</button>`).join('')}</div>`;
@@ -455,6 +483,7 @@ export class Menus {
       <span><kbd>C</kbd></span><span>Change camera</span>
       <span><kbd>R</kbd></span><span>Riding: reset to the road. After a crash: get up right away, then <kbd>R</kbd> again brings your bike to you</span>
       <span><kbd>F</kbd></span><span>Get on the bike when you're standing next to it</span>
+      <span><kbd>G</kbd></span><span>Garage: every bike you own — pick one and it spawns right where you are</span>
       <span><kbd>N</kbd></span><span>Open the full map — click it to drop waypoints (or click the minimap)</span>
       <span><kbd>P</kbd> <kbd>M</kbd> <kbd>T</kbd></span><span>Pause, mute, time of day</span>
     </div>`;
