@@ -30,7 +30,7 @@ const SPEEDMAX_G = [0, 1.5, 4.5]; // extra forward push with each speed code, in
 // speeds over which pointing the bars hands over to leaning (m/s), how far a wheelie leans,
 // how hard a (75 kg) rider can tip the bike with their body (rad/s^2) and how much of the lock
 // they'll use to countersteer
-const LEAN = { max: 0.8, wref: 7, wn: 6, zeta: 0.9, v0: 1.5, v1: 4, wheelie: 0.9, body: 9, bars: 0.6 };
+const LEAN = { max: 0.8, wref: 7, wn: 6, zeta: 0.9, v0: 1.5, v1: 4, wheelie: 0.9, wheelieYawT: 0.12, body: 9, bars: 0.6 };
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -78,7 +78,7 @@ export class BikePhysics {
     this.hopCharge = 0; this._hopHeld = false;
     this.pullT = 0; this.pullDir = 0; this._leanPrev = 0;
     this.crashed = false; this.crashReason = ''; this.crashT = 0;
-    this.surface = 0; this.yawRate = 0; this.airYaw = 0;
+    this.surface = 0; this.yawRate = 0; this.airYaw = 0; this.wheelieYaw = 0;
     this.groundPitch = 0; this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airU = 0; this._cn = 0; this._cny = 1; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
     this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
@@ -544,17 +544,22 @@ export class BikePhysics {
       delta = clamp(delta, -sp.steerMax, sp.steerMax);
       this.steerAngle = delta;
       this._bodyAcc = clamp(bodyFF - (1 - b) * (wn * wn * e + 2 * z * wn * ev), -body, body);
-      // with the front up there are no bars: the rider leans the bike with their body, and it
-      // turns at the rate that holds that lean up (the rear tyre's camber carries it round)
+      // With the front up there are no bars to turn. The rider twists the bike round its back
+      // tyre with their hips and the turn of the bars, and tips it in as far as that turn needs
+      // (the lean that balances it, as on two wheels). So the bike swings round to point where
+      // it's going, rather than tipping over and sliding across.
       const yawFront = (u * Math.tan(delta)) / L;
-      const yawRear = (G * Math.tan(this.lean)) / Math.max(au, 2) * (u < 0 ? -1 : 1);
-      yawRate = yawFront * fg + yawRear * (1 - fg);
+      const wLean = this.steer * sp.wheelieSteer * LEAN.wheelie;
+      const yawWant = (G * Math.tan(wLean)) / Math.max(au, 2) * (u < 0 ? -1 : 1);
+      if (fg > 0.98) this.wheelieYaw = yawFront;
+      else this.wheelieYaw += (yawWant - this.wheelieYaw) * Math.min(1, h / LEAN.wheelieYawT);
+      yawRate = yawFront * fg + this.wheelieYaw * (1 - fg);
       // the pendulum: gravity tips it over, the turn stands it up, the rider's body pushes it
       const aLat = u * yawRate;
       let la = (G * Math.sin(this.lean) - aLat * Math.cos(this.lean)) / hc + this._bodyAcc;
       // on the back wheel the rider throws the bike's lean around with their body instead
       if (fg < 1) {
-        const wl = sp.leanRate, tgt = this.steer * sp.wheelieSteer * LEAN.wheelie;
+        const wl = sp.leanRate, tgt = wLean;
         la = la * fg + (wl * wl * (tgt - this.lean) - 2 * wl * this.leanVel) * (1 - fg);
       }
       if (inp.wobble > 0 && !frontC) la += (Math.random() - 0.5) * 14 * inp.wobble;
@@ -567,7 +572,7 @@ export class BikePhysics {
       // airborne: a little whip, lean follows
       this.airYaw += (this.steer * 0.7 - this.airYaw) * Math.min(1, 6 * h);
       this.leanRef = this.lean; this.leanRefVel = this.leanVel; this.steerAngle += (this.steer * sp.steerMax * 0.4 - this.steerAngle) * Math.min(1, 8 * h);
-      yawRate = this.airYaw;
+      yawRate = this.airYaw; this.wheelieYaw = yawRate;
       const la = 36 * (this.steer * 0.35 - this.lean) - 9 * this.leanVel;
       this.leanVel += la * h;
       this.lean += this.leanVel * h;

@@ -65,8 +65,9 @@ wall? Hold brake to paddle backwards.
   tyres that holds a lean only when the turn's pull matches gravity. The rider countersteers
   (a flick of the bars the other way, visible on the front wheel) and shifts their body to
   tip it in, more body on light bikes and more bars on heavy ones; at walking pace they just
-  point the bars. Grip caps the lean at about 45°. On the back wheel there are no bars, so
-  wheelie swerves come from leaning the bike with your body.
+  point the bars. Grip caps the lean at about 45°. On the back wheel the rider twists the
+  bike round its rear tyre and tips it into the turn, so a wheelie swerve swings the bike round
+  to point where it's going.
 - **Ten bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Santa Cruz V10 (downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.

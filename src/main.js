@@ -969,7 +969,9 @@ class Game {
     let y = p.y + p.ryR - r * (1 - cl);
     if (!model.hasRearSusp) y += Math.min(p.rearPen, sp.susp.tR);
     g.position.set(p.x + hx * p.rsR + hz * r * sl, y, p.z + hz * p.rsR - hx * r * sl);
-    g.rotation.set(-p.pitch, p.yaw, -lean, 'YXZ');
+    // lean tips the whole bike over about the line it rolls along, so on the back wheel the
+    // raised front swings out to the side with it (pitch first, in the bike's own plane)
+    g.rotation.set(-p.pitch, p.yaw, -lean, 'YZX');
     g.updateMatrixWorld(true);
     poseBike(model, p, dt);
     const rx = p.x + hx * p.rsR, rz = p.z + hz * p.rsR;
