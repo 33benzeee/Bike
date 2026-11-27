@@ -431,7 +431,8 @@ export function poseBike(model, phys, dt) {
   if (model.hasFrontSusp) model.forkLower.position.y += (cf / Math.cos(model.rake) - model.forkLower.position.y) * Math.min(1, dt * 40);
   // bars turn a lot at walking pace, barely at speed
   const v = Math.abs(phys.speed);
-  const target = phys.steer * (0.55 / (1 + v * 0.22)) + (phys.frontContact ? 0 : phys.steer * 0.25);
+  // on the ground the front wheel shows the real steering angle (countersteer flicks included)
+  const target = phys.frontContact && phys.steerAngle !== undefined ? phys.steerAngle : phys.steer * (0.55 / (1 + v * 0.22)) + phys.steer * 0.25;
   model.fork.rotation.y += (target - model.fork.rotation.y) * Math.min(1, dt * 14);
   if (model.crank && phys.effThrottle > 0.05 && !phys.crashed) model.crank.rotation.x += Math.max(2.5, phys.spinR * 0.42) * dt;
 }

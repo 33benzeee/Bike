@@ -25,6 +25,12 @@ function springForce(k, c, travel, pen, vn, m) {
 // how hard a held wheelie can still accelerate, as a fraction of g (Sim gets 60% of it)
 const WHEELIE_ACC = 0.24;
 const SPEEDMAX_G = [0, 1.5, 4.5]; // extra forward push with each speed code, in g
+// leaning into turns (see 'steering and lean'): how far over a bike goes at most, how quickly the
+// rider takes it there (natural frequency, rad/s), the rider's balance loop (natural frequency, damping), the
+// speeds over which pointing the bars hands over to leaning (m/s), how far a wheelie leans,
+// how hard a (75 kg) rider can tip the bike with their body (rad/s^2) and how much of the lock
+// they'll use to countersteer
+const LEAN = { max: 0.8, wref: 7, wn: 6, zeta: 0.9, v0: 1.5, v1: 4, wheelie: 0.9, body: 9, bars: 0.6 };
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -60,7 +66,7 @@ export class BikePhysics {
     this.vx = this.vy = this.vz = 0;
     this.pitchVel = 0;
     this.lean = 0; this.leanVel = 0; this.gripMul = this.gripMul ?? 1;
-    this.steer = 0; this.steerVel = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
+    this.steer = 0; this.steerVel = 0; this.steerAngle = 0; this.leanRef = 0; this.leanRefVel = 0; this.throttle = 0; this.brakeIn = 0; this.comShift = 0;
     this.cx = sp ? sp.com[0] : 0.45; this.cy = sp ? sp.com[1] : 0.5;
     this.rearPen = 0; this.frontPen = 0;
     this.rearContact = true; this.frontContact = true;
@@ -500,27 +506,67 @@ export class BikePhysics {
     const au = Math.abs(u);
     let yawRate;
     if (any) {
-      // The bars turn the bike directly; lean is how the bike looks while it does
-      // it, not what makes it turn. Tight at low speed, limited by grip at speed.
-      const aLatMax = sp.grip * surfGrip * G * 1.3;
-      const kGeo = Math.tan(sp.steerMax) / L;
+      // A bike turns by leaning. It's an upside-down pendulum on its tyres: gravity tips it
+      // further over, and the turn's centripetal pull stands it back up. It holds a lean only
+      // when the two balance, tan(lean) = speed * yaw rate / g. The bars are how the rider gets
+      // there: to lean left at speed they first flick the bars right (countersteer), the bike
+      // falls left, then they turn left to catch it. The player asks for a turn; the rider
+      // below works the bars to get the lean it needs. At walking pace there's no balance to
+      // speak of: the rider just points the bars and holds the bike up.
       this.frontG += ((frontC ? 1 : 0) - this.frontG) * Math.min(1, 12 * h);
-      const authority = sp.wheelieSteer + (1 - sp.wheelieSteer) * this.frontG;
-      const kCmd = this.steer * Math.min(kGeo, aLatMax / Math.max(u * u, 0.01)) * authority;
-      yawRate = u * kCmd;
-      // a modest tilt into the turn, never laid right over
-      const leanTarget = clamp(Math.atan((u * yawRate) / G) * 0.55, -0.42, 0.42);
-      const wn = sp.leanRate * (0.75 + 0.25 * this.frontG);
-      let la = wn * wn * (leanTarget - this.lean) - 2 * wn * this.leanVel;
+      const fg = this.frontG, hc = (cy + sp.rR) * 1.15; // pendulum length (rider + bike)
+      const kGeo = Math.tan(sp.steerMax) / L;
+      const maxLean = Math.min(Math.atan(sp.grip * surfGrip * 1.3), LEAN.max);
+      // as far over as grip, and the steering lock at this speed, allow
+      const leanCap = Math.min(maxLean, Math.atan((u * u * kGeo) / G));
+      // the rider eases the bike over rather than throwing it: a smooth lean they can follow
+      const want = this.steer * leanCap, wr = LEAN.wref, r = this.leanRef;
+      // They tip the bike partly with their body (hips and knees: easy on a light bike, hard on
+      // a heavy one) and the rest with the bars. The slower they go the more the body (and a dab
+      // of a foot) does, until at walking pace they just point the bars and hold the bike up.
+      const b = u > 0 ? smooth(LEAN.v0, LEAN.v1, u) : 0;
+      const body = LEAN.body * Math.min(1, 75 / m) + (1 - b) * 60, u2 = Math.max(u * u, 0.04);
+      const aBars = (u2 * Math.tan(sp.steerMax * LEAN.bars)) / L;
+      // never ask for more lean than body and bars can deliver between them
+      let refAcc = wr * wr * (want - r) - 2 * wr * this.leanRefVel;
+      refAcc = clamp(refAcc, (G * Math.sin(r) - aBars * Math.cos(r)) / hc - body, (G * Math.sin(r) + aBars * Math.cos(r)) / hc + body);
+      this.leanRefVel += refAcc * h; this.leanRef += this.leanRefVel * h;
+      const bodyFF = clamp(refAcc, -body, body);
+      // the sideways pull that makes the bike follow that lean: the turn that holds it up, less
+      // a bit to let it fall in, more to stand it up (that's the countersteer)...
+      const aNeed = (G * Math.sin(r) - hc * (refAcc - bodyFF)) / Math.cos(r);
+      let delta = Math.atan((aNeed * L) / u2);
+      // ...plus a correction if the bike has drifted off it: steer into the lean to stand it up.
+      // Slow, the body makes that correction instead.
+      const wn = LEAN.wn, z = LEAN.zeta, e = this.lean - r, ev = this.leanVel - this.leanRefVel;
+      delta += b * ((L * hc * wn * wn) / u2 * e + (L * hc * 2 * z * wn) / u2 * ev);
+      if (au < 0.5) delta = this.steer * sp.steerMax; // walking it, or stopped
+      delta = clamp(delta, -sp.steerMax, sp.steerMax);
+      this.steerAngle = delta;
+      this._bodyAcc = clamp(bodyFF - (1 - b) * (wn * wn * e + 2 * z * wn * ev), -body, body);
+      // with the front up there are no bars: the rider leans the bike with their body, and it
+      // turns at the rate that holds that lean up (the rear tyre's camber carries it round)
+      const yawFront = (u * Math.tan(delta)) / L;
+      const yawRear = (G * Math.tan(this.lean)) / Math.max(au, 2) * (u < 0 ? -1 : 1);
+      yawRate = yawFront * fg + yawRear * (1 - fg);
+      // the pendulum: gravity tips it over, the turn stands it up, the rider's body pushes it
+      const aLat = u * yawRate;
+      let la = (G * Math.sin(this.lean) - aLat * Math.cos(this.lean)) / hc + this._bodyAcc;
+      // on the back wheel the rider throws the bike's lean around with their body instead
+      if (fg < 1) {
+        const wl = sp.leanRate, tgt = this.steer * sp.wheelieSteer * LEAN.wheelie;
+        la = la * fg + (wl * wl * (tgt - this.lean) - 2 * wl * this.leanVel) * (1 - fg);
+      }
       if (inp.wobble > 0 && !frontC) la += (Math.random() - 0.5) * 14 * inp.wobble;
       this.leanVel += la * h;
-      this.lean += this.leanVel * h;
+      this.lean = clamp(this.lean + this.leanVel * h, -LEAN.max - 0.2, LEAN.max + 0.2);
       if (this.rearLocked && frontC && au > 3) yawRate += this.steer * 1.5 * Math.min(1, au / 8);
       if (this.burning) yawRate += this.steer * 2.4 * this.throttle; // swing the back end round: donuts
       this.airYaw = 0;
     } else {
       // airborne: a little whip, lean follows
       this.airYaw += (this.steer * 0.7 - this.airYaw) * Math.min(1, 6 * h);
+      this.leanRef = this.lean; this.leanRefVel = this.leanVel; this.steerAngle += (this.steer * sp.steerMax * 0.4 - this.steerAngle) * Math.min(1, 8 * h);
       yawRate = this.airYaw;
       const la = 36 * (this.steer * 0.35 - this.lean) - 9 * this.leanVel;
       this.leanVel += la * h;

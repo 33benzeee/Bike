@@ -60,6 +60,12 @@ wall? Hold brake to paddle backwards.
   all come out of the simulation rather than being scripted. Four assist levels: *Easy*
   (auto-balance), *Normal* (shaped throttle, catches you at the balance point), *Semi-sim*
   (no catch, but it goes over slowly enough to save) and *Sim* (raw).
+- **Turning by leaning** — the bike balances like a real one: an upside-down pendulum on its
+  tyres that holds a lean only when the turn's pull matches gravity. The rider countersteers
+  (a flick of the bars the other way, visible on the front wheel) and shifts their body to
+  tip it in, more body on light bikes and more bars on heavy ones; at walking pace they just
+  point the bars. Grip caps the lean at about 45°. On the back wheel there are no bars, so
+  wheelie swerves come from leaning the bike with your body.
 - **Ten bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Santa Cruz V10 (downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
