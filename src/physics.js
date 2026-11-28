@@ -32,12 +32,6 @@ const SPEEDMAX_G = [0, 1.5, 4.5]; // extra forward push with each speed code, in
 // they'll use to countersteer
 const LEAN = { max: 0.8, wref: 7, wn: 6, zeta: 0.9, v0: 1.5, v1: 4, wheelie: 0.9, wheelieYawT: 0.12, fastV0: 6, fastV1: 14, fast: 1, body: 9, bars: 0.6 };
 const AIR_RATE = 5.6; // rad/s: how fast a full lean flips the bike in the air (a flip in ~1.2 s)
-// manual (pedal bikes): coasting on the back wheel, held up by the rider's hips instead of the
-// pedals. sweet: the angle it sits at (rad, above the ground). Hips fully back raise the front at
-// `up` rad/s, hips forward let it drop at `down`; further from the sweet spot it runs away by `unst`
-// per radian, so it needs constant small corrections. hipsRate: how fast the hips move (per s).
-// It needs some speed (v0..v1 m/s) and scrubs a little off (drag, m/s²) so it ends on its own.
-const MANUAL = { sweet: 0.28, up: 0.4, down: 0.55, unst: 2.2, hipsRate: 5, auth: 0.6, v0: 1.2, v1: 2.5, drag: 0.22 };
 const SEMI = { live: 1.2, past: 0.25, catch: 0.5, damp: 1.2 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
@@ -84,7 +78,7 @@ export class BikePhysics {
     this.hopCharge = 0; this._hopHeld = false;
     this.pullT = 0; this.pullDir = 0; this._leanPrev = 0;
     this.crashed = false; this.crashReason = ''; this.crashT = 0;
-    this.surface = 0; this.yawRate = 0; this.airYaw = 0; this.wheelieYaw = 0; this.manual = false; this.hips = 0;
+    this.surface = 0; this.yawRate = 0; this.airYaw = 0; this.wheelieYaw = 0;
     this.groundPitch = 0; this.flipAccum = 0; this.airPeak = 0; this._airVy = 0; this._airU = 0; this._cn = 0; this._cny = 1; this._airStartPitch = 0;
     this.rsR = 0; this.ryR = 0; this.rsF = 0; this.ryF = 0;
     this.assistBrake = 0; this.effThrottle = 0; this.frontG = 1; this.committed = false; this.backT = 0; this.frontIn = 0; this.scraping = false; this.burning = false; this.scrapeT = 0;
@@ -94,7 +88,6 @@ export class BikePhysics {
 
   // Pitch at which the centre of mass sits right over the rear contact patch.
   balanceAngle() {
-    if (this.manual && !this.frontContact) return MANUAL.sweet + Math.max(0, this.groundPitch);
     return Math.atan2(this.cx, this.cy);
   }
 
@@ -134,15 +127,6 @@ export class BikePhysics {
     this._leanPrev = inp.lean;
     if (inp.lean > 0.5 && this.rearContact) this.committed = true;
     else if (this.frontG > 0.9 && inp.lean <= 0.5) this.committed = false;
-    // manual: a pedal bike coasting with the bars pulled back. Starts on a pull, lasts while the
-    // back wheel is down and you aren't pedalling; holding the pull pushes the hips back
-    {
-      const coast = sp.drive.type === 'pedal' && this.rearContact && this.throttle < 0.08;
-      if (!coast || (this.frontContact && inp.lean <= 0.5)) this.manual = false;
-      else if (inp.lean > 0.5 && !this.manual) { this.manual = true; this.hips = 0.7; }
-      const want = this.manual && inp.lean > 0.5 && inp.brake < 0.3 ? 1 : 0;
-      this.hips += clamp(want - this.hips, -dt * MANUAL.hipsRate, dt * MANUAL.hipsRate);
-    }
 
     // ---- bunny hop: hold to crouch, release to pop
     const grounded = this.rearContact || this.frontContact;
@@ -482,18 +466,6 @@ export class BikePhysics {
       tq -= this.pitchVel * I * 0.25;
     } else {
       tq -= this.pitchVel * I * sp.pitchDamp * (rearC && !frontC ? 1 : 0.4);
-      if (this.manual && rearC && !frontC) {
-        // the hips carry the weight back and forth over the back tyre: they take over from gravity
-        // and set how fast the front rises or falls. Too slow and it can't be held up.
-        const f = clamp((Math.abs(u) - MANUAL.v0) / (MANUAL.v1 - MANUAL.v0), 0, 1);
-        if (f > 0) {
-          const xc = cx * ct - cy * st, Ie = I + m * xc * xc;
-          const e = this.pitch - (MANUAL.sweet + Math.max(0, this.groundPitch));
-          const wT = -MANUAL.down + (MANUAL.up + MANUAL.down) * this.hips + MANUAL.unst * e;
-          tq += f * clamp(m * G * xc + (wT - this.pitchVel) * Ie * 14, -m * G * MANUAL.auth, m * G * MANUAL.auth);
-        }
-        Fs -= m * MANUAL.drag * Math.tanh(u);
-      }
       if (assist > 0 && rearC && !frontC) {
         // past the balance point the rider instinctively shifts forward, which
         // slows the fall backwards enough to catch it with the brake
