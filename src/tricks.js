@@ -88,13 +88,15 @@ export class Tricks {
     // ---- wheelie
     const up = phys.wheelieT > 0.35 && !phys.crashed;
     if (up) {
-      if (!w.on) { w.on = true; w.dist = 0; w.time = 0; w.thr = 0; w.swerves = 0; w.lastSign = 0; w.named = {}; this._add('Wheelie', 0, false); }
-      w.dist += speed * dt; w.time += dt; w.thr += phys.throttle * dt;
+      if (!w.on) { w.on = true; w.dist = 0; w.time = 0; w.thr = 0; w.swerves = 0; w.lastSign = 0; w.named = {}; w.man = 0; this._add('Wheelie', 0, false); }
+      w.dist += speed * dt; w.time += dt; w.thr += phys.throttle * dt; if (phys.manual) w.man += dt;
       const bp = phys.balanceAngle(), err = phys.pitch - bp;
       let rate = 10 + speed * 1.3, m = 1;
-      const manual = w.time > 1.2 && w.thr / w.time < 0.12;
+      // a pedal bike held up on the hips is a manual straight away; anything else coasting for a while
+      const manual = phys.manual || (w.time > 1.2 && w.thr / w.time < 0.12);
       let name = manual ? 'Manual' : 'Wheelie';
       if (manual) m *= 1.3;
+      if (phys.manual && w.man > 0.8 && !w.named.manual) { w.named.manual = true; this._add('Manual', 50); }
       if (Math.abs(err) < 0.1) { m *= 2; this.zone = 1; }
       if (phys.pitch > spec.loopAngle - 0.13) { m *= 3; this.zone = 2; name = '12 O\'Clock'; if (!w.named.twelve) { w.named.twelve = true; this._add('12 O\'Clock', 150); } }
       for (const v of VARIANTS) {
@@ -113,7 +115,7 @@ export class Tricks {
       if (this.onStat) { this.onStat('wheelieDist', w.dist); this.onStat('wheelieTime', w.time); }
     } else if (w.on) {
       w.on = false;
-      if (w.dist > 15 && this.onPopup) this.onPopup(`${Math.round(w.dist)} m wheelie`, 0);
+      if (w.dist > 15 && this.onPopup) this.onPopup(`${Math.round(w.dist)} m ${w.man > w.time / 2 ? 'manual' : 'wheelie'}`, 0);
       for (const k in this.varT) this.varT[k] = 0;
     }
 

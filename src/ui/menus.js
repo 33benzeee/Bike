@@ -474,7 +474,7 @@ export class Menus {
       <span><kbd>W</kbd> / <kbd>↑</kbd></span><span>Throttle (pedal)</span>
       <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Brake — in a wheelie this is your rear brake: tap it to bring the front down</span>
       <span><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></span><span>Steer</span>
-      <span><kbd>Shift</kbd> / <kbd>Q</kbd></span><span>Lean back — pull up into a wheelie</span>
+      <span><kbd>Shift</kbd> / <kbd>Q</kbd></span><span>Lean back — pull up into a wheelie. On a pedal bike, stop pedalling and hold it to <b>manual</b>: hold to lift the front, let go to let it drop, and balance it by doing both</span>
       <span><kbd>X</kbd></span><span>Front brake / stoppie — hold it on the ground to lift the tail. In a wheelie it only stops the front wheel, it doesn't bring the bike down. Normal braking with <kbd>S</kbd> never tips you over the bars.</span>
       <span><kbd>E</kbd></span><span>Lean forward — keeps a powerful bike's front down, rotates you forwards in the air</span>
       <span><kbd>Space</kbd></span><span>Bunny hop (hold to crouch, release to pop)</span>
@@ -491,7 +491,7 @@ export class Menus {
       <span class="k"><b>Left stick</b></span><span>Slide left / right to steer. Pull <b>down</b> to lean back (wheelie), push <b>up</b> to lean forward.</span>
       <span class="k"><b>GAS</b></span><span>Throttle — slide your thumb up the pedal for more.</span>
       <span class="k"><b>BRAKE</b></span><span>Brake. In a wheelie it's the rear brake that saves you from looping out.</span>
-      <span class="k"><b>WHEELIE</b></span><span>Pulls the front wheel up. Hold GAS, press it, then balance with GAS and BRAKE. (Pulling the stick down does the same.)</span>
+      <span class="k"><b>WHEELIE</b></span><span>Pulls the front wheel up. Hold GAS, press it, then balance with GAS and BRAKE. (Pulling the stick down does the same.) On a pedal bike, let go of GAS and hold WHEELIE to <b>manual</b>: hold it to lift the front, let go to let it drop.</span>
       <span class="k"><b>STOPPIE</b></span><span>The front brake on its own. Hold it on the ground to lift the tail into a stoppie. In a wheelie it only stops the front wheel — use BRAKE to bring the bike down. BRAKE on its own never tips you over the bars.</span>
       <span class="k"><b>HOP</b></span><span>Hold to crouch, release to bunny hop.</span>
       <span class="k"><b>Trick buttons</b></span><span>Tap to switch a trick on (the button lights up), tap again to switch it off. They stay on until you switch them off (or crash). With <b>NO HANDS</b> you can't use GAS, BRAKE, WHEELIE or STOPPIE and steering is weak; with <b>ONE HAND</b> you can't hop.</span>
@@ -511,7 +511,7 @@ export class Menus {
     return `<div class="screen center"><div class="col panel">
       <div class="head"><button class="back" data-a="back">BACK</button><div class="h1">HOW TO RIDE</div></div>
       <div class="scroll">
-        <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. Tap a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
+        <div class="tip"><b>Your first wheelie:</b> get rolling, hold throttle and lean back. The front comes up — now feather the throttle to float in the green <b>balance point</b> zone. Too high? Tap the brake. On a pedal bike you can <b>manual</b> too: stop pedalling and hold lean back, then hold and let go to keep the front up with your hips. Tap a trick button for a bigger multiplier, and keep chaining tricks before the combo timer runs out to bank cash.</div>
         <div class="tip"><b>Shops:</b> next to where you start are the <b>Dealership</b> (buy and switch bikes) and the <b>Customs</b> garage (mods, paint, wraps). Ride into the glowing ring at each to go in. Both are marked on the map.</div>
         <div class="tip"><b>Jobs and races:</b> stop inside an <b>orange</b> ring to pick up a delivery, a <b>blue</b> ring to start a checkpoint race, or a <b>pink</b> ring for a wheelie run. They are all on the map. This season's hidden sprockets are not — a meter appears when one is close.</div>
         <div class="tip"><b>Cops:</b> wheelies, speeding and e-motos get you noticed. Once they chase, break line of sight — alleys, parks and gaps cars can't fit through — and stay hidden until the bar fills. Higher heat means roadblocks, bike cops and a helicopter, but a bigger payout when you escape.</div>

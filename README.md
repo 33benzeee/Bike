@@ -51,7 +51,9 @@ they go away. Everything can be overridden in **Settings**.
 | Pause, mute, time of day | `P`, `M`, `T` | II | Start |
 
 **Your first wheelie:** get rolling, hold throttle and lean back. Feather the throttle to
-float in the green balance-point zone; tap the brake if it goes too far. Stopped against a
+float in the green balance-point zone; tap the brake if it goes too far. On a pedal bike you
+can **manual**: stop pedalling and hold lean back, then hold and let go to keep the front in
+the green zone with your hips. Stopped against a
 wall? Hold brake to paddle backwards.
 
 ## What's in it
@@ -67,7 +69,10 @@ wall? Hold brake to paddle backwards.
   tip it in, more body on light bikes and more bars on heavy ones; at walking pace they just
   point the bars. Grip caps the lean at about 45°. On the back wheel the rider twists the
   bike round its rear tyre and tips it into the turn, so a wheelie swerve swings the bike round
-  to point where it's going.
+  to point where it's going (harder at speed, so fast swerves still show).
+- **Manuals** — on the pedal bikes, coast with the bars pulled back and the rider holds the
+  front up with their hips. It sits low (about 16°), runs away if you let it drift, needs some
+  speed and scrubs a little off, so every manual ends on its own. Swerves work in a manual too.
 - **Ten bikes** — Wheelie Bike, Trail MTB, Enduro FS (full suspension), Santa Cruz V10 (downhill), Macfox X1, Super73-RX, Surron Light Bee X,
   Talaria Sting R, E Ride Pro-SS and the Stark Varg, each with its own weight, geometry,
   power curve, balance point and temperament.
